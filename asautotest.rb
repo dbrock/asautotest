@@ -31,6 +31,10 @@ class ASAutotest
     puts " #{message}."
   end
 
+  def print_divider
+    info("-" * 60)
+  end
+  
   def initialize(source_directory, test_file)
     @source_directory = source_directory
     @test_file = test_file
@@ -38,8 +42,10 @@ class ASAutotest
     @flashplayer = "/Applications/Flash Player.app/Contents/MacOS/Flash Player"
     @mxmlc = "/Users/daniel/Downloads/flex-4-sdk/bin/mxmlc"
     
+    print_divider
     info "Source directory: #@source_directory"
     info "Test file: #@test_file"
+    print_divider
 
     start
   end
@@ -47,26 +53,35 @@ class ASAutotest
   def start
     @watcher = Watcher.new { |directories| handle_change(directories) }
     @watcher.watch_directories([@source_directory])
+    compile("Compiling")
     start_listening
     @watcher.start
   end
 
   def start_listening
+    print_divider
     info "Ready."
   end
 
   def handle_change(directories)
-    compile
+    compile("Change detected; compiling")
     start_listening
   end
 
-  def compile
+  def compile(message)
     @binary_name = "/tmp/asautotest/#{get_timestamp}.swf"
-    begin_info "Change detected; compiling"
+    begin_info(message)
     output = IO.popen("#{compile_command} 2>&1") { |x| x.readlines }
     if $? == 0
-      end_info "ok"
+      end_info "ok; running tests"
       test
+      begin_info("Deleting binary")
+      begin
+        File.delete(@binary_name)
+        end_info("ok")
+      rescue Exception => exception
+        end_info("failed: #{exception.message}")
+      end
     else
       end_info "failed"
       until output.empty?
@@ -105,30 +120,62 @@ class ASAutotest
   end
 
   def test
-    info "Running tests."
+    require "socket"
+
+    expected_greeting = "Hello, this is a test.\n"
+    policy_file_request = "<policy-file-request/>\0"
+
+    # Make sure we can accept a policy file request as a greeting.
+    unless expected_greeting.size >= policy_file_request.size
+      raise "Internal error: Expected greeting is too short."
+    end
     
+    port = 50002
+    server = TCPServer.new(port)
+    server.setsockopt(Socket::SOL_SOCKET, Socket::SO_REUSEADDR, true)
     Open4.popen4(test_command) do |pid, stdin, stdout, stderr|
       begin
-        Timeout.timeout(3) do
-          catch(:done) do
-            loop do
-              line = stderr.readline
-              case line
-              when "done"
-                info "Test run finished."
-                throw :done
-              else
-                puts ">> #{line}"
+        begin_info "Accepting connection"
+        # It takes at least 3 seconds to get a policy file request.
+        socket = Timeout.timeout(5) { server.accept }
+        end_info "ok"
+        begin
+          Timeout.timeout(10) do
+            greeting = socket.read(expected_greeting.size)
+            case greeting
+            when policy_file_request
+              info "!! Recieved policy file request; aborting."
+              info "!! Please set up a policy server on port 843."
+            when expected_greeting
+              info "Performed handshake."
+              catch(:done) do
+                loop do
+                  line = socket.readline.chomp
+                  case line
+                  when "done"
+                    info "Test run finished."
+                    throw :done
+                  else
+                    puts ">> #{line.inspect}"
+                  end
+                end
               end
-            end
+            else
+              info "!! Unrecognized greeting: #{greeting.inspect}"
+            end            
           end
+        rescue Timeout::Error
+          info "!! Test run taking too long; aborting."
         end
       rescue Timeout::Error
-        info "Test run taking too long; aborting."
+        end_info "timeout"
+        info "!! Test did not connect to localhost:#{port}."
       end
 
+      server.close
+
       if Open4.alive? pid
-        begin_info "Killing test process"
+        begin_info "Killing process"
         Open4.maim(pid, :suspend => 0.5)        
         end_info(Open4.alive?(pid) ? "ok" : "failed")
       end
@@ -147,4 +194,3 @@ end
 ASAutotest.new \
   File.dirname(__FILE__) + "/test-project/src",
   File.dirname(__FILE__) + "/test-project/src/specification.as"
-
