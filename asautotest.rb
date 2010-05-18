@@ -1,32 +1,28 @@
 require "rubygems"
-require "fsevent"
+require "fssm"
 require "logging"
 require "compilation-runner"
 require "test-runner"
 
 module ASAutotest
-  class Watcher < FSEvent
-    def initialize(&callback)
-      super
-      @callback = callback
-    end
-
-    def on_change(directories)
-      @callback[directories]
-    end
-  end
-
   class Main
     include Logging
+
+    WATCH_GLOB = "**/[^.]*.{as,mxml}"
 
     def initialize(source_directory, test_source_file_name)
       @source_directory = source_directory
       @test_source_file_name = test_source_file_name
-      @watcher = Watcher.new(&method(:handle_change))
-      @watcher.watch_directories([@source_directory])
-  
+    end
+
+    def self.run(*arguments)
+      new(*arguments).run
+    end
+
+    def run
       print_header
-      start
+      build
+      monitor_changes
     end
 
     def print_header
@@ -36,21 +32,28 @@ module ASAutotest
       print_divider
     end
   
-    def start
-      build
-      start_listening
-      @watcher.start
+    def monitor_changes
+      on_before_wait
+      FSSM.monitor(@source_directory, WATCH_GLOB) do |path|
+        path.update do |base, relative|
+          on_after_wait
+          handle_change
+          on_before_wait
+        end
+      end
     end
 
-    def start_listening
+    def on_before_wait
       print_divider
       begin_info "Waiting for changes"
     end
-  
-    def handle_change(directories)
+
+    def on_after_wait
       end_info "ok"
+    end
+  
+    def handle_change
       build
-      start_listening
     end
 
     def build
@@ -98,6 +101,6 @@ module ASAutotest
   end
 end
 
-ASAutotest::Main.new \
+ASAutotest::Main.run \
   File.dirname(__FILE__) + "/test-project/src",
   File.dirname(__FILE__) + "/test-project/src/specification.as"
