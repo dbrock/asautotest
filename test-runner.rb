@@ -10,7 +10,7 @@ module ASAutotest
     end
   
     def run
-      info "Running tests via socket connection."
+      verbose_info "Running tests via socket connection."
       expected_greeting = "Hello, this is a test.\n"
       policy_file_request = "<policy-file-request/>\0"
   
@@ -24,10 +24,10 @@ module ASAutotest
       server.setsockopt(Socket::SOL_SOCKET, Socket::SO_REUSEADDR, true)
       Open4.popen4(FLASHPLAYER, @binary_name) do |pid, stdin, stdout, stderr|
         begin
-          begin_info "Accepting connection"
+          verbose_begin_info "Accepting connection"
           # It takes at least 3 seconds to get a policy file request.
           socket = Timeout.timeout(5) { server.accept }
-          end_info "ok"
+          verbose_end_info "ok"
           begin
             Timeout.timeout(10) do
               greeting = socket.read(expected_greeting.size)
@@ -38,7 +38,7 @@ module ASAutotest
                 info "!! Recieved policy file request; aborting."
                 info "!! Please set up a policy server on port 843."
               when expected_greeting
-                info "Performed handshake."
+                verbose_info "Performed handshake."
                 catch(:done) do
                   loop do
                     line = socket.readline.chomp
@@ -65,16 +65,21 @@ module ASAutotest
             info "!! Test run taking too long; aborting."
           end
         rescue Timeout::Error
-          end_info "timeout"
+          verbose_end_info "timeout"
           info "!! Test did not connect to localhost:#{port}."
         end
   
         server.close
   
         if Open4.alive? pid
-          begin_info "Killing process"
-          Open4.maim(pid, :suspend => 0.5)        
-          end_info(Open4.alive?(pid) ? "ok" : "failed")
+          verbose_begin_info "Killing process"
+          Open4.maim(pid, :suspend => 0.5)
+          # if Open4.alive? pid
+          #   verbose_end_info "failed"
+          #   quiet_info "Failed to kill process (pid #{pid})."
+          # else
+          #   verbose_end_info "ok"
+          # end
         end
       end
     end

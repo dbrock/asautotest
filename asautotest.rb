@@ -17,10 +17,6 @@ module ASAutotest
       @test_source_file_name = test_source_file_name
     end
 
-    def self.run(*arguments)
-      new(*arguments).run
-    end
-
     def run
       print_header
       build
@@ -54,7 +50,7 @@ module ASAutotest
 
     def handle_change
       print_divider
-      info "Change detected."
+      verbose_info "Change detected."
       build
     end
 
@@ -85,12 +81,11 @@ module ASAutotest
     end
 
     def delete_test_binary
-      begin_info("Deleting binary")
       begin
         File.delete(@test_binary_file_name)
-        end_info("ok")
+        verbose_info("Deleted binary.")
       rescue Exception => exception
-        end_info("failed: #{exception.message}")
+        info("Failed to delete binary: #{exception.message}")
       end
     end
 
@@ -104,4 +99,20 @@ module ASAutotest
   end
 end
 
-ASAutotest::Main.run(*ARGV)
+
+$normal_arguments = []
+$verbose = false
+
+for argument in ARGV do
+  case argument
+  when "--verbose"
+    $verbose = true
+  when /^-/
+    warn "unrecognized argument: #{argument}"
+  else
+    $normal_arguments << argument
+  end
+end
+
+ASAutotest::Logging.verbose = $verbose
+ASAutotest::Main.new(*$normal_arguments).run
