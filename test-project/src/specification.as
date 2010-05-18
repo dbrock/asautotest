@@ -17,10 +17,10 @@ package
 
     private function handleConnected(event : Event)
     {
+      socket.writeUTFBytes("Hello, this is a test.\n");
       socket.writeUTFBytes("done\n");
       socket.flush();
       socket.close();
-      System.exit(0);
     }
   }
 }

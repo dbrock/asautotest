@@ -1,4 +1,5 @@
 require "socket"
+require "timeout"
 
 class PolicyFileServer
   PORT = 843
@@ -7,46 +8,60 @@ class PolicyFileServer
     @server = TCPServer.new(PORT)
     @server.setsockopt(Socket::SOL_SOCKET, Socket::SO_REUSEADDR, true)
 
-    puts "Listening to port #{PORT}."
+    info "Listening to localhost:#{PORT}."
   end
 
   def run
-    Thread.abort_on_exception = true
     loop { accept }
   end
 
   def accept
-    socket = @server.accept
-    handle_socket(socket)
-    socket.close
-    puts "Closed socket."
+    handle_socket(@server.accept)
   end
+
+  def info(message)
+    puts info_string(message)
+  end
+
+  def info_string(message)
+    "policy-file-server: #{message}"
+  end
+
+  def begin_info(message)
+    STDOUT.print info_string("#{message}...")
+    STDOUT.flush
+  end
+
+  def end_info(message)
+    STDOUT.puts " #{message}."
+  end
+
+  EXPECTED_REQUEST = "<policy-file-request/>\0"
 
   def handle_socket(socket)
     source = "#{socket.peeraddr[2]}:#{socket.peeraddr[1]}"
-    puts "Recieved connection from #{source}."
-
-    expected_line = "<policy-file-request/>\0"
-
-    line = socket.read(expected_line.size)
-
-    if line == expected_line
-      socket.print(File.open("cross-domain-policy.xml").read)
+    begin_info "Serving #{source}"
+    request = Timeout.timeout(3) { socket.read(EXPECTED_REQUEST.size) }
+    if request == EXPECTED_REQUEST
+      socket.print(policy_xml)
       socket.print("\0")
-      puts "Sent policy file to #{source}."
+      end_info "ok"
     else
-      warn "Recieved garbage from #{source}: #{line.inspect}"
+      end_info "recieved garbage: #{request.inspect}"
     end
+  rescue Timeout::Error
+    end_info "timeout"
+  ensure
+    socket.close
   end
 
-  def response
-    '<?xml version="1.0"?>' +
-      '<!DOCTYPE cross-domain-policy SYSTEM "/xml/dtds/cross-domain-policy.dtd">' +
-      '<cross-domain-policy>' +
-      '<site-control permitted-cross-domain-policies="master-only"/>' +
-      '<allow-access-from domain="*" to-ports="*"/>' +
-      '</cross-domain-policy>' +
-      "\0"
+  def policy_xml
+    <<-end_xml
+      <cross-domain-policy>
+        <site-control permitted-cross-domain-policies="master-only"/>
+        <allow-access-from domain="*" to-ports="*"/>
+      </cross-domain-policy>
+    end_xml
   end
 end
 
