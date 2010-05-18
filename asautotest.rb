@@ -5,13 +5,15 @@ require "compilation-runner"
 require "test-runner"
 
 module ASAutotest
+  WATCH_GLOB = "**/[^.]*.{as,mxml}"
+  MXMLC = "/Users/daniel/Downloads/flex-4-sdk/bin/mxmlc"
+  FLASHPLAYER = "/Applications/Flash Player.app/Contents/MacOS/Flash Player"
+
   class Main
     include Logging
 
-    WATCH_GLOB = "**/[^.]*.{as,mxml}"
-
-    def initialize(source_directory, test_source_file_name)
-      @source_directory = source_directory
+    def initialize(test_source_file_name, *source_directories)
+      @source_directories = source_directories
       @test_source_file_name = test_source_file_name
     end
 
@@ -27,32 +29,32 @@ module ASAutotest
 
     def print_header
       print_divider
-      info "Source directory: #@source_directory"
-      info "Test root file: #@test_source_file_name"
+      info "Root test: ".ljust(20) + @test_source_file_name
+      for source_directory in @source_directories do
+        info "Source directory: ".ljust(20) + source_directory
+      end
       print_divider
     end
   
     def monitor_changes
-      on_before_wait
-      FSSM.monitor(@source_directory, WATCH_GLOB) do |path|
-        path.update do |base, relative|
-          on_after_wait
-          handle_change
-          on_before_wait
+      monitor = FSSM::Monitor.new
+      each_source_directory do |source_directory|
+        monitor.path(source_directory, WATCH_GLOB) do |watch|
+          watch.update do |base, relative|
+            handle_change
+          end
         end
       end
+      monitor.run
     end
 
-    def on_before_wait
-      print_divider
-      begin_info "Waiting for changes"
+    def each_source_directory(&block)
+      @source_directories.each(&block)
     end
 
-    def on_after_wait
-      end_info "ok"
-    end
-  
     def handle_change
+      print_divider
+      info "Change detected."
       build
     end
 
@@ -62,12 +64,13 @@ module ASAutotest
         run_tests
         delete_test_binary
       end
+      info "Ready."
     end
 
     def compile
       @test_binary_file_name = get_test_binary_file_name
       @compilation = CompilationRunner.new \
-        :source_directory => @source_directory,
+        :source_directories => @source_directories,
         :input_file_name => @test_source_file_name,
         :output_file_name => @test_binary_file_name
       @compilation.run
@@ -101,6 +104,4 @@ module ASAutotest
   end
 end
 
-ASAutotest::Main.run \
-  File.dirname(__FILE__) + "/test-project/src",
-  File.dirname(__FILE__) + "/test-project/src/specification.as"
+ASAutotest::Main.run(*ARGV)

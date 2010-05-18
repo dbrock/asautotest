@@ -5,8 +5,6 @@ module ASAutotest
   class TestRunner
     include Logging
 
-    FLASHPLAYER = "/Applications/Flash Player.app/Contents/MacOS/Flash Player"
-
     def initialize(binary_name)
       @binary_name = binary_name
     end
@@ -48,6 +46,12 @@ module ASAutotest
                     when "done"
                       info "Test run successful."
                       throw :done
+                    when /^passed: (.*)/
+                      info "Passed: #$1"
+                    when /^failed: (.*)/
+                      info "!! Failed: #$1"
+                    when /^reason: (.*)/
+                      info "!! Reason: #$1"
                     else
                       puts ">> #{line.inspect}"
                     end

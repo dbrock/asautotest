@@ -2,10 +2,8 @@ module ASAutotest
   class CompilationRunner  
     include Logging
 
-    MXMLC = "/Users/daniel/Downloads/flex-4-sdk/bin/mxmlc"
-
     def initialize(options)
-      @source_directory = options[:source_directory]
+      @source_directories = options[:source_directories]
       @input_file_name = options[:input_file_name]
       @output_file_name = options[:output_file_name]
     end
@@ -27,8 +25,8 @@ module ASAutotest
           line = output.shift
           case line
           when /^Loading configuration file /
-          when /#{@source_directory}\/(.*?)\((\d+)\).*?col:\s+(\d+)\s+(.*)/
-            file_name = $1
+          when /^(.*?)\((\d+)\).*?col:\s+(\d+)\s+(.*)/
+            file_name = strip_file_name($1)
             line_number = $2
             column_number = $3
             message = $4.sub(/^Error:\s+/, "")
@@ -55,10 +53,32 @@ module ASAutotest
         end
       end
     end
+
+    def strip_file_name(file_name)
+      for source_directory in @source_directories do
+        if file_name.start_with? source_directory
+          file_name[source_directory.size .. -1]
+        end
+      end
+
+      file_name
+    end
   
     def compile_command
-      %{"#{MXMLC}" -compiler.source-path "#@source_directory"} +
-        %{ -output "#@output_file_name" "#@input_file_name"}
+      build_string do |result|
+        result << %{"#{MXMLC}"}      
+        for source_directory in @source_directories do
+          result << %{ -compiler.source-path "#{source_directory}"}
+        end
+        result << %{ -output "#@output_file_name"}
+        result << %{ "#@input_file_name"}
+      end
+    end
+
+    def build_string
+      result = ""
+      yield(result)
+      result
     end
   end
 end
