@@ -99,17 +99,8 @@ module ASAutotest
         end
   
         server.close
-  
-        if Open4.alive? pid
-          verbose_begin_info "Killing process"
-          Open4.maim(pid, :suspend => 0.5)
-          # if Open4.alive? pid
-          #   verbose_end_info "failed"
-          #   quiet_info "Failed to kill process (pid #{pid})."
-          # else
-          #   verbose_end_info "ok"
-          # end
-        end
+
+        Open4.maim(pid, :suspend => 0.5)
       end
     end
   end
