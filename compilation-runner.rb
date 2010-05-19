@@ -1,5 +1,7 @@
 module ASAutotest
-  class CompilationRunner  
+  class CompilationRunner
+    class CompilationFailure < Exception ; end
+
     include Logging
 
     def initialize(options)
@@ -12,45 +14,73 @@ module ASAutotest
       @success == true
     end
 
+    def run_compilation
+      @output = IO.popen("#{compile_command} 2>&1") { |x| x.readlines }
+      @success = $? == 0
+      raise CompilationFailure if not successful?
+    end
+
     def run
-      begin_info("Compiling")
-      output = IO.popen("#{compile_command} 2>&1") { |x| x.readlines }
-      if $? == 0
-        end_info "ok"
-        @success = true
+      say("Compiling") { run_compilation }
+    rescue CompilationFailure
+      parse_failure
+    end
+
+    def parse_failure
+      parse_failure_line(read_failure_line) until @output.empty?
+    end
+
+    def read_failure_line
+      @output.shift
+    end
+
+    def parse_failure_line(line)
+      case line
+      when /^Loading configuration file /
+      when /^(.*?)\((\d+)\).*?col:\s+(\d+)\s+(.*)/
+        parse_error \
+          :file_name => $1,
+          :line_number => $2,
+          :column_number => $3,
+          :message => $4
       else
-        end_info "failed"
-        @success = false
-        until output.empty?
-          line = output.shift
-          case line
-          when /^Loading configuration file /
-          when /^(.*?)\((\d+)\).*?col:\s+(\d+)\s+(.*)/
-            file_name = strip_file_name($1)
-            line_number = $2
-            column_number = $3
-            message = $4.sub(/^Error:\s+/, "")
-            location = "#{file_name} (line #{line_number})"
-  
-            source_lines = []
-  
-            while !output.empty? and output.first =~ /^\s/
-              source_lines << output.shift
-            end
-  
-            puts
-            puts "!! #{location}"
-            puts "!! #{message}"
-            
-            for line in source_lines do
-              puts "|| #{line}" if line =~ /\S/
-            end
-  
-            puts
-          else
-            puts ">> #{line}"
-          end
-        end
+        puts ">> #{line}"
+      end
+    end
+
+    def parse_error(options)
+      file_name = strip_file_name(options[:file_name])
+      line_number = options[:line_number]
+      column_number = options[:column_number]
+      message = options[:message].sub(/^Error:\s+/, "")
+
+      location = "#{file_name} (line #{line_number})"
+      source_lines = read_indented_lines.grep(/\S/)
+
+      puts
+      puts "!! #{location}"
+      puts "!! #{message}"
+
+      for line in source_lines
+        puts "|| #{line}"
+      end
+
+      puts
+    end
+
+    def read_indented_lines
+      read_lines_matching(/^\s/)
+    end
+
+    def read_lines_matching(pattern)
+      gather do |result|
+        with_lines_matching(pattern) { |line| result << line }
+      end
+    end
+
+    def with_lines_matching(pattern)
+      while !@output.empty? and @output.first =~ pattern
+        yield @output.shift
       end
     end
 
@@ -73,12 +103,6 @@ module ASAutotest
         result << %{ -output "#@output_file_name"}
         result << %{ "#@input_file_name"}
       end
-    end
-
-    def build_string
-      result = ""
-      yield(result)
-      result
     end
   end
 end

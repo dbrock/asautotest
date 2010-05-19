@@ -1,6 +1,7 @@
 require "rubygems"
 require "fssm"
 require "logging"
+require "stopwatch"
 require "compilation-runner"
 require "test-runner"
 
@@ -24,12 +25,17 @@ module ASAutotest
     end
 
     def print_header
-      print_divider
-      info "Root test: ".ljust(20) + @test_source_file_name
+      new_logging_section
+
+      say "Root test: ".ljust(20) + @test_source_file_name
+
       for source_directory in @source_directories do
-        info "Source directory: ".ljust(20) + source_directory
+        say "Source directory: ".ljust(20) + source_directory
       end
-      print_divider
+
+      say "Running in verbose mode." if Logging.verbose?
+
+      new_logging_section
     end
   
     def monitor_changes
@@ -49,27 +55,31 @@ module ASAutotest
     end
 
     def handle_change
-      print_divider
-      verbose_info "Change detected."
+      new_logging_section
+      whisper "Change detected."
       build
     end
 
     def build
       compile
+
       if compilation_successful?
         run_tests
         delete_test_binary
       end
-      info "Ready."
+
+      whisper "Ready."
     end
 
     def compile
+      @compilation_stopwatch = Stopwatch.new
       @test_binary_file_name = get_test_binary_file_name
       @compilation = CompilationRunner.new \
         :source_directories => @source_directories,
         :input_file_name => @test_source_file_name,
         :output_file_name => @test_binary_file_name
       @compilation.run
+      @compilation_stopwatch.stop
     end
 
     def compilation_successful?
@@ -77,15 +87,15 @@ module ASAutotest
     end
 
     def run_tests
-      TestRunner.new(@test_binary_file_name).run
+      TestRunner.new(@test_binary_file_name, @compilation_stopwatch).run
     end
 
     def delete_test_binary
       begin
         File.delete(@test_binary_file_name)
-        verbose_info("Deleted binary.")
+        whisper "Deleted binary."
       rescue Exception => exception
-        info("Failed to delete binary: #{exception.message}")
+        shout "Failed to delete binary: #{exception.message}"
       end
     end
 
@@ -98,7 +108,6 @@ module ASAutotest
     end
   end
 end
-
 
 $normal_arguments = []
 $verbose = false

@@ -1,5 +1,7 @@
 module ASAutotest
   module Logging
+    PREFIX = "asautotest: "
+  
     def self.verbose= value
       @verbose = value
     end
@@ -12,41 +14,93 @@ module ASAutotest
       Logging.verbose?
     end
 
-    def info(message)
-      puts info_string(message)
+    # ------------------------------------------------------
+
+    def say(*arguments, &block)
+      if block_given?
+        say_with_block(*arguments, &block)
+      else
+        say_without_block(*arguments)
+      end
     end
 
-    def verbose_info(message)
-      info(message) if verbose?
+    def shout(message)
+      say "!! #{message}"
     end
 
-    def info_string(message)
-      "asautotest: #{message}"
+    def whisper(*arguments, &block)
+      if block_given?
+        whisper_with_block(*arguments, &block)
+      else
+        whisper_without_block(*arguments)
+      end
     end
-  
-    def begin_info(message)
-      STDOUT.print info_string("#{message}...")
+
+    # ------------------------------------------------------
+
+    def say_without_block(message)
+      puts "#{PREFIX}#{message}"
+    end
+
+    def say_with_block(message, ok_message = "ok", error_message = "failed")
+      start_saying(message)
+      yield
+      end_saying(ok_message)
+    rescue
+      end_saying(error_message)
+      raise
+    end
+
+    def start_saying(message)
+      STDOUT.print "#{PREFIX}#{message}..."
       STDOUT.flush
     end
   
-    def end_info(message)
-      puts " #{message}."
+    def end_saying(message)
+      STDOUT.puts " #{message}."
     end
+
+    # ------------------------------------------------------
+
+    def whisper_without_block(message)
+      say message if verbose?
+    end
+
+    def whisper_with_block(message, ok_message = "ok", error_message = "failed")
+      start_whisper(message)
+      yield
+      end_whisper(ok_message)
+    rescue
+      end_whisper(error_message)
+      raise
+    end
+
+    def start_whisper(message)
+      start_saying(message) if verbose?
+    end
+
+    def end_whisper(message)
+      end_saying(message) if verbose?
+    end
+
+    # ------------------------------------------------------
   
-    def print_divider
-      info("-" * 60)
+    def new_logging_section
+      say("-" * 60)
     end
 
-    def verbose_begin_info(message)
-      begin_info(message) if verbose?
+    # ------------------------------------------------------
+
+    def gather
+      result = []
+      yield result
+      result
     end
 
-    def verbose_end_info(message)
-      end_info(message) if verbose?
-    end
-
-    def quiet_info(message)
-      info(message) if not verbose?
+    def build_string
+      result = ""
+      yield(result)
+      result
     end
   end
 end

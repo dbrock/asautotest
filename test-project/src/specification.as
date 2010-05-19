@@ -9,7 +9,7 @@ package
   public class specification extends Sprite implements TestListener
   {
     private const socket : Socket = new Socket;
-    private const test : SizedTest = new CompleteMetasuite;
+    private const test : SizedTest = new AcmeSuite;
 
     public function specification()
     {
