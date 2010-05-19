@@ -40,16 +40,45 @@ module ASAutotest
               when expected_greeting
                 verbose_info "Performed handshake."
                 catch(:done) do
+                  plan = nil
+                  n_ran_tests = 0
+                  n_failed_tests = 0
                   loop do
                     line = socket.readline.chomp
                     case line
+                    when /^plan (\d+)$/
+                      if plan != nil
+                        info "!! Got another plan: #{line.inspect}"
+                      elsif n_ran_tests > 0
+                        info "!! Got plan too late: #{line.inspect}"
+                      else
+                        plan = $1.to_i
+                        verbose_info "Planning to run #{plan} tests."
+                      end
                     when "done"
-                      info "Test run successful."
+                      if n_ran_tests == plan
+                        info "Ran #{n_ran_tests} tests."
+                      elsif n_ran_tests > plan
+                        info "Ran #{n_ran_tests} tests " +
+                          "(#{n_ran_tests - plan} new)."
+                      else
+                        info "Ran #{n_ran_tests} tests " +
+                          "but planned for #{plan}."
+                        info "!! Missing #{plan - n_ran_tests} tests!"
+                      end
+
+                      if n_failed_tests > 0
+                        info "!! Failures in #{n_failed_tests} tests."
+                      end
+
                       throw :done
                     when /^passed: (.*)/
-                      info "Passed: #$1"
+                      verbose_info "Passed: #$1"
+                      n_ran_tests += 1
                     when /^failed: (.*)/
                       info "!! Failed: #$1"
+                      n_ran_tests += 1
+                      n_failed_tests += 1
                     when /^reason: (.*)/
                       info "!! Reason: #$1"
                     else
