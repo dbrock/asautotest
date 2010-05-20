@@ -19,6 +19,10 @@ module ASAutotest
     def initialize(binary_name, compilation_stopwatch)
       @binary_name = binary_name
       @compilation_stopwatch = compilation_stopwatch
+
+      @n_planned_tests = nil
+      @n_completed_tests = 0
+      @n_failed_tests = 0
     end
 
     def run
@@ -141,37 +145,13 @@ module ASAutotest
       shout "Failures in #{n_failed_tests} tests." if failed_tests?
     end
 
-    def new_tests?
-      n_new_tests > 0
-    end
-
-    def missing_tests?
-      n_missing_tests > 0
-    end
-
-    def failed_tests?
-      n_failed_tests > 0
-    end
-
-    def n_missing_tests
-      n_planned_tests - n_completed_tests
-    end
-
-    def n_new_tests
-      n_completed_tests - n_planned_tests
-    end
-
-    attr_reader :n_planned_tests
-    attr_reader :n_completed_tests
-    attr_reader :n_failed_tests
-
     def test_count_report
       build_string do |result|
-        result << "Ran #@n_completed_tests tests"
+        result << "Ran #{n_completed_tests} tests"
 
-        if @n_completed_tests > @n_planned_tests
-          result << " (#{@n_completed_tests - @n_planned_tests} new)"
-        elsif @n_completed_tests < @n_planned_tests
+        if new_tests?
+          result << " (#{n_new_tests} new)"
+        elsif missing_tests?
           result << " (too few)"
         end
 
@@ -180,9 +160,6 @@ module ASAutotest
     end
 
     def talk_patiently_to_test
-      @n_planned_tests = nil
-      @n_completed_tests = 0
-      @n_failed_tests = 0
       catch(:done) do
         loop do
           line = @socket.readline.chomp
@@ -212,6 +189,32 @@ module ASAutotest
           end
         end
       end
+    end
+
+    # ------------------------------------------------------
+
+    attr_reader :n_planned_tests
+    attr_reader :n_completed_tests
+    attr_reader :n_failed_tests
+
+    def n_missing_tests
+      n_planned_tests - n_completed_tests
+    end
+
+    def n_new_tests
+      n_completed_tests - n_planned_tests
+    end
+
+    def new_tests?
+      n_new_tests > 0
+    end
+
+    def missing_tests?
+      n_missing_tests > 0
+    end
+
+    def failed_tests?
+      n_failed_tests > 0
     end
   end
 end
