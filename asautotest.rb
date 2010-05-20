@@ -1,9 +1,11 @@
 require "rubygems"
 require "fssm"
+require "pathname"
 require "logging"
 require "stopwatch"
 require "compilation-runner"
 require "test-runner"
+require "utilities"
 
 module ASAutotest
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
@@ -14,8 +16,10 @@ module ASAutotest
     include Logging
 
     def initialize(test_source_file_name, *source_directories)
-      @source_directories = source_directories
-      @test_source_file_name = test_source_file_name
+      @source_directories = source_directories.map do |directory_name|
+        File.expand_path(directory_name) + "/"
+      end
+      @test_source_file_name = File.expand_path(test_source_file_name)
     end
 
     def run

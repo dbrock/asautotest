@@ -1,4 +1,8 @@
 module ASAutotest
+  module Bracketable
+    def [] *arguments ; new(*arguments) end
+  end
+
   module Logging
     PREFIX = "asautotest: "
   
@@ -46,9 +50,9 @@ module ASAutotest
       start_saying(message)
       yield
       end_saying(ok_message)
-    rescue
-      end_saying(error_message)
-      raise
+      ended = true
+    ensure
+      end_saying(error_message) unless ended
     end
 
     def start_saying(message)
@@ -70,9 +74,9 @@ module ASAutotest
       start_whisper(message)
       yield
       end_whisper(ok_message)
-    rescue
-      end_whisper(error_message)
-      raise
+      ended = true
+    ensure
+      end_whisper(error_message) unless ended
     end
 
     def start_whisper(message)
@@ -87,20 +91,6 @@ module ASAutotest
   
     def new_logging_section
       say("-" * 60)
-    end
-
-    # ------------------------------------------------------
-
-    def gather
-      result = []
-      yield result
-      result
-    end
-
-    def build_string
-      result = ""
-      yield(result)
-      result
     end
   end
 end

@@ -9,7 +9,7 @@ package
   public class specification extends Sprite implements TestListener
   {
     private const socket : Socket = new Socket;
-    private const test : SizedTest = new AcmeSuite;
+    private const test : SizedTest = new CompleteMetasuite;
 
     public function specification()
     {
@@ -17,7 +17,7 @@ package
       socket.connect("localhost", 50002);
     }
 
-    private function handleConnected(event : Event)
+    private function handleConnected(event : Event) : void
     {
       socket.writeUTFBytes("Hello, this is a test.\n");      
       socket.writeUTFBytes("plan " + test.size + "\n");
@@ -32,14 +32,14 @@ package
     private function runTests() : void
     { test.run(this); }
 
-    public function testPassed(test : Test) : void
+    public function handleTestPassed(test : Test) : void
     {
       const name : String = test is NamedTest ? NamedTest(test).name : "";
 
       socket.writeUTFBytes("passed: " + name + "\n");
     }
 
-    public function testFailed(test : Test, error : Error) : void
+    public function handleTestFailed(test : Test, error : Error) : void
     {
       socket.writeUTFBytes("failed: " + getTestName(test) + "\n");
       socket.writeUTFBytes("reason: " + error.message + "\n");
