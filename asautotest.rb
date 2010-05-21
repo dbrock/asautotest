@@ -46,9 +46,9 @@ module ASAutotest
       monitor = FSSM::Monitor.new
       each_source_directory do |source_directory|
         monitor.path(source_directory, WATCH_GLOB) do |watch|
-          watch.update do |base, relative|
-            handle_change
-          end
+          watch.update { |base, relative| handle_change }
+          watch.create { |base, relative| handle_change }
+          watch.delete { |base, relative| handle_change }
         end
       end
       monitor.run

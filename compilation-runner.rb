@@ -171,6 +171,10 @@ module ASAutotest
 
       def to_s ; name end
 
+      def full_name
+        "#{package}.#{name}"
+      end
+
       def == other
         package == other.package and name == other.name
       end
@@ -222,17 +226,109 @@ module ASAutotest
 
       def self.parse(message)
         case message.sub(/^(Error|Warning):\s+/, "")
-        when /^Interface method ((?:get |set )?\S+) in namespace (\S+) not implemented by class (\S+).$/i
-          MissingImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
-        when /^Call .* undefined method (\S+) .* type (\S+).$/i
+        when /^Definition (\S+) could not be found.$/i
+          UndefinedImport.new(Type.parse($1))
+        when /^Call to a possibly undefined method (\S+) .* type (\S+).$/i
           UndefinedMethod.new(Member[Type.parse($2), $1])
+        when /^Call to a possibly undefined method (\S+).$/i
+          UndefinedMethod.new(Member[nil, $1])
+        when /^Access of undefined property (\S+).$/i
+          UndefinedProperty.new(Member[nil, $1])
+        when /^Type was not found or was not a compile-time constant: (\S+).$/i
+          UndefinedType.new(Type.parse($1))
+        when /^Illegal assignment to a variable specified as constant.$/i
+          ConstantAssignment.new
         when /^return value for function '(\S+)' has no type declaration.$/i
           MissingReturnType.new(Member[nil, $1])
         when /^Interface (\S+) was not found.$/i
           InterfaceNotFound.new(Type.parse($1))
+        when /^Implicit coercion of a value of type (\S+) to an unrelated type (\S+).$/i
+          TypeMismatch.new(Type.parse($2), Type.parse($1))
+        when /^Interface method ((?:get |set )?\S+) in namespace (\S+) not implemented by class (\S+).$/i
+          MissingImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
         else
           Unknown.new(message)
         end
+      end
+
+      class ConstantAssignment < Problem
+        def message ; "Attempt to modify constant:" end
+        def details ; identifier_source_line_details end
+      end
+
+      class UndefinedImport < Problem
+        def initialize(type) @type = type end
+        def message ; "Import not found:" end
+        def details
+          bullet_details(@type.full_name)
+        end
+      end
+
+      class UndefinedMethod < Problem
+        def initialize(member) @member = member end
+        def message ; "Undefined method:" end
+        def details ; identifier_source_line_details end
+      end
+
+      class UndefinedProperty < Problem
+        def initialize(member) @member = member end
+        def message ; "Undefined property:" end
+        def details ; identifier_source_line_details end
+      end
+
+      class UndefinedType < Problem
+        def initialize(type) @type = type end
+        def message ; "Undefined type:" end
+        def details ; identifier_source_line_details end
+      end
+
+      class MissingReturnType < Problem
+        def initialize(member) @member = member end
+        def message ; "Missing return type:"  end
+        def details ; member_details end
+      end
+
+      class InterfaceNotFound < Problem
+        def initialize(member) @member = member end
+        def message ; "Interface not found:"  end
+        def details ; member_details end
+      end
+
+      class TypeMismatch < Problem
+        def initialize(expected_type, actual_type)
+          @expected_type = expected_type
+          @actual_type = actual_type
+        end
+
+        def message ; "Expected #@expected_type but was #@actual_type:" end
+        def details
+          identifier_source_line_details
+        end
+      end
+
+      class MissingImplementation < Problem
+        def initialize(member, implementing_type)
+          @member = member
+          @implementing_type = implementing_type
+        end
+
+        def message
+          if file.type == @implementing_type
+            "Missing implementation:"
+          else
+            "Missing implementation in #@implementing_type:"
+          end
+        end
+
+        def details
+          "\e[34m  * \e[1m#{@member.name}\e[0;34m (#{@member.type})\e[0m"
+        end
+      end
+
+      class Unknown < Problem
+        def initialize(message) @message = message end
+        def message ; @message end
+        def details ; source_line_details end
       end
 
       def print_report
@@ -283,54 +379,15 @@ module ASAutotest
 
       def identifier_source_line_details
         source_line =~ /^(.{#{column_number}})([\w$]+)(.*)$/
-        "\e[34m  ... #$1\e[1m#$2\e[0;34m#$3\e[0m"
+        "\e[34m  ... #$1\e[1;4m#$2\e[0;34m#$3\e[0m"
       end
 
       def member_details
-        "\e[34m  * #@member\e[0m"
+        bullet_details(@member)
       end
 
-      class MissingImplementation < Problem
-        def initialize(member, implementing_type)
-          @member = member
-          @implementing_type = implementing_type
-        end
-
-        def message
-          if file.type == @implementing_type
-            "Missing implementation:"
-          else
-            "Missing implementation in #@implementing_type:"
-          end
-        end
-
-        def details
-          "\e[34m  * \e[1m#{@member.name}\e[0;34m (#{@member.type})\e[0m"
-        end
-      end
-
-      class UndefinedMethod < Problem
-        def initialize(member) @member = member end
-        def message ; "Undefined method:" end
-        def details ; identifier_source_line_details end
-      end
-
-      class MissingReturnType < Problem
-        def initialize(member) @member = member end
-        def message ; "Missing return type:"  end
-        def details ; member_details end
-      end
-
-      class InterfaceNotFound < Problem
-        def initialize(member) @member = member end
-        def message ; "Interface not found:"  end
-        def details ; member_details end
-      end
-
-      class Unknown < Problem
-        def initialize(message) @message = message end
-        def message ; @message end
-        def details ; source_line_details end
+      def bullet_details(content)
+        "\e[34m  * #{content}\e[0m"
       end
     end
 
