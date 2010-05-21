@@ -160,6 +160,15 @@ module ASAutotest
         @name = name
       end
 
+      def self.parse(input)
+        case input
+        when /^(.*):(.*)$/
+          Type[$1, $2]
+        else
+          Type[nil, input]
+        end
+      end
+
       def to_s ; name end
 
       def == other
@@ -185,15 +194,24 @@ module ASAutotest
       attr_accessor :file
 
       def details ; nil end
-      def source_line ; location.source_line end
-      def line_number ; location.line_number end
+      
+      def source_line
+        build_string do |result|
+          result << location.source_line.trim
+          result << " ..." unless location.source_line =~ /[;{}]\s*$/
+        end
+      end
+
+      def line_number
+        location.line_number
+      end
 
       def column_number
         location.column_number - indentation_width
       end
 
       def indentation_width
-        source_line =~ /^(\s*)/ ; $1.size
+        location.source_line =~ /^(\s*)/ ; $1.size
       end
 
       def self.[] message, location
@@ -204,14 +222,14 @@ module ASAutotest
 
       def self.parse(message)
         case message.sub(/^(Error|Warning):\s+/, "")
-        when /^Interface method ((?:get |set )?\S+) in namespace (\S+):(\S+) not implemented by class (\S+):(\S+).$/i
-          MissingImplementation.new(Member[Type[$2, $3], $1], Type[$4, $5])
-        when /^Call .* undefined method (\S+) .* type (\S+):(\S+).$/i
-          UndefinedMethod.new(Member[Type[$2, $3], $1])
+        when /^Interface method ((?:get |set )?\S+) in namespace (\S+) not implemented by class (\S+).$/i
+          MissingImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
+        when /^Call .* undefined method (\S+) .* type (\S+).$/i
+          UndefinedMethod.new(Member[Type.parse($2), $1])
         when /^return value for function '(\S+)' has no type declaration.$/i
           MissingReturnType.new(Member[nil, $1])
         when /^Interface (\S+) was not found.$/i
-          InterfaceNotFound.new(Type[nil, $1])
+          InterfaceNotFound.new(Type.parse($1))
         else
           Unknown.new(message)
         end
@@ -260,19 +278,11 @@ module ASAutotest
       end
 
       def source_line_details
-        "\e[34m#{raw_source_line_details}\e[0m"
-      end
-
-      def raw_source_line_details
-        build_string do |result|
-          result << source_line.trim
-          result << " ..." unless source_line =~ /[;{}]\s*$/
-        end
+        "\e[34m  ... #{source_line}\e[0m"
       end
 
       def identifier_source_line_details
-        raw_source_line_details =~
-          /^(.{#{column_number}})([\w$]+)(.*)$/
+        source_line =~ /^(.{#{column_number}})([\w$]+)(.*)$/
         "\e[34m  ... #$1\e[1m#$2\e[0;34m#$3\e[0m"
       end
 
