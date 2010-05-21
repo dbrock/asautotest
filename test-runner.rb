@@ -17,10 +17,8 @@ module ASAutotest
 
     PORT = 50002
 
-    def initialize(binary_name, compilation_stopwatch)
+    def initialize(binary_name)
       @binary_name = binary_name
-      @compilation_stopwatch = compilation_stopwatch
-
       @n_planned_tests = nil
       @suites = {}
     end
@@ -157,7 +155,7 @@ module ASAutotest
           result << " (too few)"
         end
 
-        result << " in ~#@compilation_stopwatch + ~#@test_stopwatch seconds."
+        result << " in ~#@test_stopwatch seconds."
       end
     end
 

@@ -48,8 +48,9 @@ module ASAutotest
 
     def say_with_block(message, ok_message = "ok", error_message = "failed")
       start_saying(message)
-      yield
-      end_saying(ok_message)
+      status = ""
+      yield(status)
+      end_saying(status.empty? ? ok_message : status)
       ended = true
     ensure
       end_saying(error_message) unless ended

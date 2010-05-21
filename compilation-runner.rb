@@ -5,43 +5,93 @@ module ASAutotest
 
     include Logging
 
-    def initialize(options)
-      @source_directories = options[:source_directories]
-      @input_file_name = options[:input_file_name]
-      @output_file_name = options[:output_file_name]
+    attr_reader :n_recompiled_files
+
+    def initialize(shell)
+      @shell = shell
       @problematic_files = {}
+      @n_recompiled_files = nil
+      @unrecognized_lines = []
+    end
+
+    def source_directories
+      @shell.source_directories
     end
 
     def successful?
       @success == true
     end
 
-    def run_compilation
-      @output = IO.popen("#{compile_command} 2>&1") { |x| x.readlines }
-      @success = $? == 0
-      raise CompilationFailure if not successful?
+    def failed?
+      not successful?
+    end
+
+    def bootstrap?
+      @n_recompiled_files == nil
+    end
+
+    def recompilation?
+      not bootstrap?
+    end
+
+    def did_anything?
+      bootstrap? or n_recompiled_files > 0
     end
 
     def run
-      say("Compiling") { run_compilation }
-    rescue CompilationFailure
-      parse_output
+      @stopwatch = Stopwatch.new
+      compile
+      @stopwatch.stop
       print_report
     end
 
+    def compile
+      say("Compiling") do |status|
+        @output = @shell.run_compilation
+
+        parse_output
+
+        if failed?
+          status << "failed"
+        elsif bootstrap?
+          status << "bootstrapped in #{compilation_time}"
+        elsif did_anything?
+          status << "recompiled #{@n_recompiled_files} files in #{compilation_time}"
+        else
+          status << "nothing changed"
+        end
+      end
+    end
+
+    def compilation_time
+      "~#{@stopwatch.to_s(1)} seconds"
+    end
+
     def print_report
+      for line in @unrecognized_lines
+        puts "\e[1;31m??\e[0;37m #{line}\e[0m"
+      end
+
       for name, file in @problematic_files do
         file.print_report
       end
 
-      puts
+      puts if not @problematic_files.empty?
     end
 
     def parse_output
       while has_more_lines?
         case line = read_line
         when /^Loading configuration file /
-        when /^(.*?)\((\d+)\).*?col:\s+(\d+)\s+(.*)/
+        when /^fcsh: Assigned \d+ as the compile target id/
+        when /^Recompile: /
+        when /^Reason: /
+        when /^\s*$/
+        when /\(\d+ bytes\)$/
+          @success = true
+        when /^Files changed: \d+ Files affected: (\d+)/
+          @n_recompiled_files = $1.to_i
+        when /^(.*?)\((\d+)\): col: (\d+) (.*)/
           file_name = $1
           line_number = $2.to_i
           column_number = $3.to_i - 1
@@ -53,8 +103,10 @@ module ASAutotest
           problem = Problem[message, location]
 
           add_problem(file_name, problem)
+        when /^(.*?): (.*)/
+          add_problem($1, Problem[$2, nil])
         else
-          puts "?? #{line}"
+          @unrecognized_lines << line
         end
       end
     end
@@ -68,7 +120,7 @@ module ASAutotest
         @problematic_files[file_name]
       else
         @problematic_files[file_name] =
-          ProblematicFile.new(file_name, @source_directories)
+          ProblematicFile.new(file_name, source_directories)
       end
     end
 
@@ -85,7 +137,7 @@ module ASAutotest
       def << problem
         @problems << problem
         problem.file = self
-        @problems = @problems.sort_by { |x| x.location.sort_key }
+        @problems = @problems.sort_by { |x| x.sort_key }
       end
 
       def type
@@ -198,10 +250,16 @@ module ASAutotest
       def details ; nil end
       
       def source_line
-        build_string do |result|
-          result << location.source_line.trim
-          result << " ..." unless location.source_line =~ /[;{}]\s*$/
+        if location
+          build_string do |result|
+            result << location.source_line.trim
+            result << " ..." unless location.source_line =~ /[;{}]\s*$/
+          end
         end
+      end
+
+      def sort_key
+        location && location.sort_key
       end
 
       def line_number
@@ -326,7 +384,11 @@ module ASAutotest
       class Unknown < Problem
         def initialize(message) @message = message end
         def message ; @message end
-        def details ; source_line_details end
+        def details
+          if source_line
+            source_line_details
+          end
+        end
       end
 
       def print_report
@@ -389,17 +451,6 @@ module ASAutotest
       end
     end
 
-    def compile_command
-      build_string do |result|
-        result << %{"#{MXMLC}"}
-        for source_directory in @source_directories do
-          result << %{ -compiler.source-path "#{source_directory}"}
-        end
-        result << %{ -output "#@output_file_name"}
-        result << %{ "#@input_file_name"}
-      end
-    end
-
     # ------------------------------------------------------
 
     def has_more_lines?
@@ -407,11 +458,11 @@ module ASAutotest
     end
 
     def read_lines(n)
-      @output.shift(n)
+      @output.shift(n).map(&:chomp)
     end
 
     def read_line
-      @output.shift
+      @output.shift.chomp
     end
   end
 end

@@ -4,8 +4,8 @@ module ASAutotest
       @start_time = current_time
     end
 
-    def to_s
-      round(n_elapsed_seconds, 3).to_s
+    def to_s(decimals = 3)
+      round(n_elapsed_seconds, decimals).to_s
     end
 
     def stop

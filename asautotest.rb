@@ -3,6 +3,7 @@ require "fssm"
 require "pathname"
 require "logging"
 require "stopwatch"
+require "compiler-shell"
 require "compilation-runner"
 require "test-runner"
 require "utilities"
@@ -10,6 +11,7 @@ require "utilities"
 module ASAutotest
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
   MXMLC = "/Users/daniel/Downloads/flex-4-sdk/bin/mxmlc"
+  FCSH = "/Users/daniel/Downloads/flex-4-sdk/bin/fcsh"
   FLASHPLAYER = "/Applications/Flash Player.app/Contents/MacOS/Flash Player"
 
   class Main
@@ -24,6 +26,7 @@ module ASAutotest
 
     def run
       print_header
+      start_compiler_shell
       build
       monitor_changes
     end
@@ -40,6 +43,15 @@ module ASAutotest
       say "Running in verbose mode." if Logging.verbose?
 
       new_logging_section
+    end
+
+    def start_compiler_shell
+      @test_binary_file_name = get_test_binary_file_name
+      @compiler_shell = CompilerShell.new \
+        :source_directories => @source_directories,
+        :input_file_name => @test_source_file_name,
+        :output_file_name => @test_binary_file_name
+      @compiler_shell.start
     end
   
     def monitor_changes
@@ -67,8 +79,8 @@ module ASAutotest
     def build
       compile
 
-      if compilation_successful?
-        run_tests
+      if @compilation.successful?
+        run_tests if @compilation.did_anything?
         delete_test_binary
       end
 
@@ -76,22 +88,12 @@ module ASAutotest
     end
 
     def compile
-      @compilation_stopwatch = Stopwatch.new
-      @test_binary_file_name = get_test_binary_file_name
-      @compilation = CompilationRunner.new \
-        :source_directories => @source_directories,
-        :input_file_name => @test_source_file_name,
-        :output_file_name => @test_binary_file_name
+      @compilation = CompilationRunner.new(@compiler_shell)
       @compilation.run
-      @compilation_stopwatch.stop
-    end
-
-    def compilation_successful?
-      @compilation.successful?
     end
 
     def run_tests
-      TestRunner.new(@test_binary_file_name, @compilation_stopwatch).run
+      TestRunner.new(@test_binary_file_name).run
     end
 
     def delete_test_binary
