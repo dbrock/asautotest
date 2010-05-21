@@ -33,3 +33,11 @@ class String
     gsub(/^\s+|\s$/, "")
   end
 end
+
+module Enumerable
+  def sum
+    result = 0
+    each { |x| result += x }
+    result
+  end
+end

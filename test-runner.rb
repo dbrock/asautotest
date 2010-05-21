@@ -22,8 +22,7 @@ module ASAutotest
       @compilation_stopwatch = compilation_stopwatch
 
       @n_planned_tests = nil
-      @n_completed_tests = 0
-      @n_failed_tests = 0
+      @suites = {}
     end
 
     def run
@@ -140,6 +139,7 @@ module ASAutotest
 
     def report_results
       if failed_tests?
+        suites.each &:print_report!
         puts
       else
         say test_count_report
@@ -169,7 +169,7 @@ module ASAutotest
           when /^plan (\d+)$/
             if @n_planned_tests != nil
               misbehavior! "Got another plan: #{line.inspect}"
-            elsif @n_completed_tests > 0
+            elsif n_completed_tests > 0
               misbehavior! "Got plan too late: #{line.inspect}"
             else
               @n_planned_tests = $1.to_i
@@ -179,7 +179,8 @@ module ASAutotest
             throw :done
           when /^xml-result: (.*)/
             begin
-              interpret_result(Result.parse_xml($1))
+              result = Result.parse_xml($1)
+              get_suite(result.suite_name) << result
             rescue Result::ParseError
               misbehavior! "Could not interpret XML result: #$1"
             end
@@ -190,10 +191,61 @@ module ASAutotest
       end
     end
 
-    def interpret_result(result)
-      @n_completed_tests += 1
-      @n_failed_tests += 1 if not result.passed?
-      result.report!
+    def n_completed_tests
+      suites.map(&:n_results).sum
+    end
+
+    def n_failed_tests
+      suites.map(&:n_failures).sum
+    end
+
+    def suites
+      @suites.values
+    end
+
+    def get_suite(name)
+      if @suites.include? name
+        @suites[name]
+      else
+        @suites[name] = Suite.new(name)
+      end
+    end
+
+    class Suite
+      attr_reader :name
+
+      def initialize(name)
+        @name = name
+        @results = []
+      end
+
+      def << result
+        @results << result
+      end
+
+      def print_report!
+        if @results.any? &:failed?
+          print_header!
+          @results.each &:print_report!
+        end
+      end
+
+      def print_header!
+        puts
+        puts "\e[1m#{display_name}\e[0m"
+      end
+
+      def display_name
+        @name or "(Unnamed suite)"
+      end
+
+      def n_results
+        @results.size
+      end
+
+      def n_failures
+        @results.count &:failed?
+      end
     end
 
     class Result
@@ -209,8 +261,8 @@ module ASAutotest
 
       def self.parse_xml(input)
         XMLResult.new(REXML::Document.new(input).root).result
-      #rescue
-      #  raise ParseError
+      rescue
+        raise ParseError
       end
       
       class XMLResult
@@ -262,23 +314,33 @@ module ASAutotest
         end
       end
 
-      class Success < Result
-        def passed? ; true end
+      def passed? ; not failed? end
 
-        def report!
+      def local_name
+        local_and_suite_names[1]
+      end
+
+      def suite_name
+        local_and_suite_names[2]
+      end
+
+      def local_and_suite_names
+        test_name.match /^(.*?)(?: \((\S+)\))?$/
+      end
+
+      class Success < Result
+        def failed? ; false end
+
+        def print_report!
           whisper "Passed: #{test_name}"
         end
       end
 
       class Failure < Result
-        def passed? ; false end
+        def failed? ; true end
 
-        def report!
-          test_name =~ /^(.*?)(?: \((\S+)\))?$/
-          puts
-          print ljust("\e[1;31mFailed:\e[0m \e[1;4m#$1\e[0m  ", 50)
-          print "(\e[4m#$2\e[0m)" if $2
-          puts
+        def print_report!
+          puts "  \e[1;31mFailed:\e[0m \e[0;4m#{local_name}\e[0m"
           report_reason!
         end
 
@@ -291,7 +353,7 @@ module ASAutotest
           end
 
           def report_reason!
-            puts "  #@description" if @description
+            puts "    \e[0m#@description\e[0m" if @description
           end
         end
 
@@ -303,8 +365,8 @@ module ASAutotest
           end
 
           def report_reason!
-            puts "  \e[1mExpected:\e[0m  \e[0m#@expected\e[0m"
-            puts "  \e[1mActual:\e[0m    \e[0m#@actual\e[0m"
+            puts "    \e[0mActual:\e[0m    \e[0m#@actual\e[0m"
+            puts "    \e[0mExpected:\e[0m  \e[0m#@expected\e[0m"
           end
         end
       end
@@ -313,8 +375,6 @@ module ASAutotest
     # ------------------------------------------------------
 
     attr_reader :n_planned_tests
-    attr_reader :n_completed_tests
-    attr_reader :n_failed_tests
 
     def n_missing_tests
       n_planned_tests - n_completed_tests

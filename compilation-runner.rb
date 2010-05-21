@@ -110,9 +110,7 @@ module ASAutotest
         print ljust("\e[1m#{basename}\e[0m", 40)
         puts "  (in #{dirname})"
 
-        for problem in @problems do
-          problem.print_report()
-        end
+        @problems.each &:print_report
       end
 
       def basename
@@ -321,7 +319,7 @@ module ASAutotest
         end
 
         def details
-          "\e[34m  * \e[1m#{@member.name}\e[0;34m (#{@member.type})\e[0m"
+          "\e[0m  * \e[1m#{@member.name}\e[0m (#{@member.type})\e[0m"
         end
       end
 
@@ -374,12 +372,12 @@ module ASAutotest
       end
 
       def source_line_details
-        "\e[34m  ... #{source_line}\e[0m"
+        "\e[0m  ... #{source_line}\e[0m"
       end
 
       def identifier_source_line_details
         source_line =~ /^(.{#{column_number}})([\w$]+)(.*)$/
-        "\e[34m  ... #$1\e[1;4m#$2\e[0;34m#$3\e[0m"
+        "\e[0m  ... #$1\e[1;4m#$2\e[0m#$3\e[0m"
       end
 
       def member_details
@@ -387,7 +385,7 @@ module ASAutotest
       end
 
       def bullet_details(content)
-        "\e[34m  * #{content}\e[0m"
+        "\e[0m  * #{content}\e[0m"
       end
     end
 

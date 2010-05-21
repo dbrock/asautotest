@@ -104,7 +104,7 @@ module ASAutotest
     end
 
     def get_test_binary_file_name
-      "/tmp/asautotest/#{get_timestamp}.swf"
+      "/tmp/asautotest/#{get_timestamp}-#{rand}.swf"
     end
 
     def get_timestamp
