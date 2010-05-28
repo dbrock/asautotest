@@ -15,8 +15,6 @@ module ASAutotest
     EXPECTED_GREETING.size >= POLICY_FILE_REQUEST.size or
       raise "Internal error: Expected greeting is too short."
 
-    PORT = 50002
-
     def initialize(binary_name)
       @binary_name = binary_name
       @n_planned_tests = nil
@@ -50,7 +48,7 @@ module ASAutotest
     end
 
     def start_server
-      @server = TCPServer.new(PORT)
+      @server = TCPServer.new(TEST_PORT)
       @server.setsockopt(Socket::SOL_SOCKET, Socket::SO_REUSEADDR, true)
     end
 
@@ -99,7 +97,7 @@ module ASAutotest
         @socket = Timeout.timeout(4) { @server.accept }
       end
     rescue Timeout::Error
-      misbehavior! "Test did not connect to localhost:#{PORT}."
+      misbehavior! "Test did not connect to localhost:#{TEST_PORT}."
     end
 
     def shake_hands

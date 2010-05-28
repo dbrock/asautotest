@@ -1,5 +1,4 @@
 require "rubygems"
-require "fssm"
 require "pathname"
 require "logging"
 require "stopwatch"
@@ -7,12 +6,15 @@ require "compiler-shell"
 require "compilation-runner"
 require "test-runner"
 require "utilities"
+require "comet-server"
 
 module ASAutotest
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
   MXMLC = "/Users/daniel/Downloads/flex-4-sdk/bin/mxmlc"
   FCSH = "/Users/daniel/Downloads/flex-4-sdk/bin/fcsh"
   FLASHPLAYER = "/Applications/Flash Player.app/Contents/MacOS/Flash Player"
+  TEST_PORT = 50102
+  COMET_PORT = 50103
 
   class Main
     include Logging
@@ -26,6 +28,7 @@ module ASAutotest
 
     def run
       print_header
+      start_comet_server
       start_compiler_shell
       build
       monitor_changes
@@ -45,6 +48,15 @@ module ASAutotest
       new_logging_section
     end
 
+    def start_comet_server
+      read_pipe, @comet_pipe = IO.pipe
+      fork do
+        @comet_pipe.close
+        CometServer.new(COMET_PORT, read_pipe).run
+      end
+      read_pipe.close
+    end
+
     def start_compiler_shell
       @test_binary_file_name = get_test_binary_file_name
       @compiler_shell = CompilerShell.new \
@@ -55,6 +67,7 @@ module ASAutotest
     end
   
     def monitor_changes
+      require "fssm"
       monitor = FSSM::Monitor.new
       each_source_directory do |source_directory|
         monitor.path(source_directory, WATCH_GLOB) do |watch|
@@ -85,6 +98,7 @@ module ASAutotest
       end
 
       whisper "Ready."
+      @comet_pipe.puts
     end
 
     def compile

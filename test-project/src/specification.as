@@ -16,7 +16,7 @@ package
     public function specification()
     {
       socket.addEventListener(Event.CONNECT, handleConnected)
-      socket.connect("localhost", 50002);
+      socket.connect("localhost", 50102);
     }
 
     private function handleConnected(event : Event) : void
