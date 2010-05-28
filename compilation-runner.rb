@@ -89,8 +89,8 @@ module ASAutotest
         when /^\s*$/
         when /\(\d+ bytes\)$/
           @success = true
-        when /^Files changed: \d+ Files affected: (\d+)/
-          @n_recompiled_files = $1.to_i
+        when /^Files changed: (\d+) Files affected: (\d+)/
+          @n_recompiled_files = $1.to_i + $2.to_i
         when /^(.*?)\((\d+)\): col: (\d+) (.*)/
           file_name = $1
           line_number = $2.to_i
@@ -160,7 +160,8 @@ module ASAutotest
       def print_report
         puts
         print ljust("\e[1m#{basename}\e[0m", 40)
-        puts "  (in #{dirname})"
+        print "  (in #{dirname})" unless dirname == "."
+        puts
 
         @problems.each &:print_report
       end
@@ -356,7 +357,11 @@ module ASAutotest
           @actual_type = actual_type
         end
 
-        def message ; "Expected #@expected_type but was #@actual_type:" end
+        def message
+          "Expected \e[4m#@expected_type\e[0m " +
+            "but was \e[4m#@actual_type\e[0m:"
+        end
+
         def details
           identifier_source_line_details
         end
