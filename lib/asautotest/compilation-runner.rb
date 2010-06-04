@@ -81,7 +81,9 @@ module ASAutotest
 
     def parse_output
       while has_more_lines?
-        case line = read_line
+        line = read_line
+        puts ">> #{line}" if Logging.verbose?
+        case line
         when /^Loading configuration file /
         when /^fcsh: Assigned \d+ as the compile target id/
         when /^Recompile: /
@@ -89,6 +91,8 @@ module ASAutotest
         when /^\s*$/
         when /\(\d+ bytes\)$/
           @success = true
+        when /^Nothing has changed /
+          @n_recompiled_files = 0
         when /^Files changed: (\d+) Files affected: (\d+)/
           @n_recompiled_files = $1.to_i + $2.to_i
         when /^(.*?)\((\d+)\): col: (\d+) (.*)/
@@ -103,6 +107,8 @@ module ASAutotest
           problem = Problem[message, location]
 
           add_problem(file_name, problem)
+        when /^Error: (.*)/
+          add_problem(nil, Problem[$1, nil])
         when /^(.*?): (.*)/
           add_problem($1, Problem[$2, nil])
         else
@@ -160,18 +166,26 @@ module ASAutotest
       def print_report
         puts
         print ljust("\e[1m#{basename}\e[0m", 40)
-        print "  (in #{dirname})" unless dirname == "."
+        print "  (in #{dirname})" unless dirname == "." if has_file_name?
         puts
 
         @problems.each &:print_report
       end
 
+      def has_file_name?
+        @file_name != nil
+      end
+
       def basename
-        File.basename(@file_name)
+        if @file_name == nil
+          "(compiler error)"
+        else
+          File.basename(@file_name)
+        end
       end
 
       def dirname
-        File.dirname(stripped_file_name)
+        File.dirname(stripped_file_name) if has_file_name?
       end
 
       def stripped_file_name
@@ -260,7 +274,7 @@ module ASAutotest
       end
 
       def sort_key
-        location && location.sort_key
+        location ? location.sort_key : 0
       end
 
       def line_number

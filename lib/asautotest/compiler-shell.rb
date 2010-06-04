@@ -7,6 +7,7 @@ module ASAutotest
 
     def initialize(options)
       @source_directories = options[:source_directories]
+      @library_path = options[:library_path]
       @input_file_name = options[:input_file_name]
       @output_file_name = options[:output_file_name]
     end
@@ -50,6 +51,9 @@ module ASAutotest
         result << %{mxmlc}
         for source_directory in @source_directories do
           result << %{ -compiler.source-path=#{source_directory}}
+        end
+        for library in @library_path do
+          result << %{ -compiler.library-path=#{library}}
         end
         result << %{ -output=#@output_file_name}
         result << %{ -static-link-runtime-shared-libraries}

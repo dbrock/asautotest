@@ -1,12 +1,17 @@
+#!/usr/bin/env ruby
+
 require "rubygems"
 require "pathname"
-require "logging"
-require "stopwatch"
-require "compiler-shell"
-require "compilation-runner"
-require "test-runner"
-require "utilities"
-require "comet-server"
+
+$: << File.join(File.dirname(Pathname.new(__FILE__).realpath), "..", "lib")
+
+require "asautotest/logging"
+require "asautotest/stopwatch"
+require "asautotest/compiler-shell"
+require "asautotest/compilation-runner"
+require "asautotest/test-runner"
+require "asautotest/utilities"
+require "asautotest/comet-server"
 
 module ASAutotest
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
@@ -19,11 +24,21 @@ module ASAutotest
   class Main
     include Logging
 
-    def initialize(test_source_file_name, *source_directories)
+    def initialize(test_source_file_name, source_directories, options)
       @source_directories = source_directories.map do |directory_name|
         File.expand_path(directory_name) + "/"
       end
       @test_source_file_name = File.expand_path(test_source_file_name)
+      @no_test = options[:no_test?]
+      @output_file_name = File.expand_path(options[:output_file_name]) if
+        options[:output_file_name]
+      @library_path = options[:library_path].map do |file_name|
+        File.expand_path(file_name)
+      end
+    end
+
+    def self.run(*arguments)
+      new(*arguments).run
     end
 
     def run
@@ -37,12 +52,17 @@ module ASAutotest
     def print_header
       new_logging_section
 
-      say "Root test: ".ljust(20) + @test_source_file_name
+      say "Source file: ".ljust(20) + @test_source_file_name
 
       for source_directory in @source_directories do
         say "Source directory: ".ljust(20) + source_directory
       end
 
+      for library in @library_path do
+        say "Library: ".ljust(20) + library
+      end
+
+      say "Not running any tests." if @no_test
       say "Running in verbose mode." if Logging.verbose?
 
       new_logging_section
@@ -61,6 +81,7 @@ module ASAutotest
       @test_binary_file_name = get_test_binary_file_name
       @compiler_shell = CompilerShell.new \
         :source_directories => @source_directories,
+        :library_path => @library_path,
         :input_file_name => @test_source_file_name,
         :output_file_name => @test_binary_file_name
       @compiler_shell.start
@@ -93,8 +114,8 @@ module ASAutotest
       compile
 
       if @compilation.successful?
-        run_tests if @compilation.did_anything?
-        delete_test_binary
+        run_tests if @compilation.did_anything? unless @no_test
+        delete_test_binary unless @no_test
       end
 
       whisper "Ready."
@@ -120,7 +141,8 @@ module ASAutotest
     end
 
     def get_test_binary_file_name
-      "/tmp/asautotest/#{get_timestamp}-#{rand}.swf"
+      @output_file_name ||
+        "/tmp/asautotest/#{get_timestamp}-#{rand}.swf"
     end
 
     def get_timestamp
@@ -131,11 +153,20 @@ end
 
 $normal_arguments = []
 $verbose = false
+$no_test = false
+$output_file_name = nil
+$library_path = []
 
 for argument in ARGV do
   case argument
   when "--verbose"
     $verbose = true
+  when "--no-test"
+    $no_test = true
+  when /--output=(\S+)/
+    $output_file_name = $1
+  when /--library=(\S+)/
+    $library_path << $1
   when /^-/
     warn "unrecognized argument: #{argument}"
   else
@@ -143,5 +174,15 @@ for argument in ARGV do
   end
 end
 
+unless $normal_arguments.size >= 2
+  warn "usage: asautotest [OPTIONS...] SOURCE-FILE SOURCE-DIRS..."
+  exit -1
+end
+
 ASAutotest::Logging.verbose = $verbose
-ASAutotest::Main.new(*$normal_arguments).run
+ASAutotest::Main.run \
+  $normal_arguments[0],
+  $normal_arguments[1..-1],
+  :no_test? => $no_test,
+  :output_file_name => $output_file_name,
+  :library_path => $library_path
