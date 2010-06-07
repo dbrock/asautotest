@@ -309,18 +309,32 @@ module ASAutotest
           UndefinedProperty.new(Member[nil, $1])
         when /^Access of possibly undefined property (\S+)/i
           UndefinedProperty.new(Member[nil, $1])
+        when /^Attempted access of inaccessible property (\S+)/i
+          InaccessibleProperty.new(Member[nil, $1])
         when /^A file found in a source-path must have .*? '(\S+?)'/i
           WrongPackage.new(Type[$1, nil])
+        when /^A file found in a source-path '(\S+?)' must .* as the class/i
+          WrongClassName.new(Type[nil, $1])
         when /^Type was not found or was not a compile-time constant: (\S+).$/i
+          UndefinedType.new(Type.parse($1))
+        when /^The definition of base class (\S+) was not found.$/i
           UndefinedType.new(Type.parse($1))
         when /^Illegal assignment to a variable specified as constant.$/i
           ConstantAssignment.new
+        when /^Method marked override must override another method.$/i
+          BogusOverride.new
+        when /^Incorrect number of arguments.\s* Expected no more than (\d+).$/i
+          TooManyArguments.new($1)
+        when /^Incorrect number of arguments.\s* Expected (\d+).$/i
+          TooFewArguments.new($1)
         when /^return value for function '(\S+)' has no type declaration.$/i
           MissingReturnType.new(Member[nil, $1])
         when /^Interface (\S+) was not found.$/i
           InterfaceNotFound.new(Type.parse($1))
         when /^Implicit coercion of a value of type (\S+) to an unrelated type (\S+).$/i
           TypeMismatch.new(Type.parse($2), Type.parse($1))
+        when /^Comparison between a value with static type (\S+) and a possibly unrelated type Null.$/i
+          InvalidNullComparison.new
         when /^Interface method ((?:get |set )?\S+) in namespace (\S+) not implemented by class (\S+).$/i
           MissingImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
         else
@@ -330,6 +344,11 @@ module ASAutotest
 
       class ConstantAssignment < Problem
         def message ; "Attempt to modify constant:" end
+        def details ; identifier_source_line_details end
+      end
+
+      class BogusOverride < Problem
+        def message ; "Bogus override:" end
         def details ; identifier_source_line_details end
       end
 
@@ -353,15 +372,38 @@ module ASAutotest
         def details ; identifier_source_line_details end
       end
 
+      class InaccessibleProperty < Problem
+        def initialize(member) @member = member end
+        def message ; "Property access not allowed:" end
+        def details ; identifier_source_line_details end
+      end
+
       class WrongPackage < Problem
         def initialize(type) @type = type end
         def message ; "Package should be #@type." end
+      end
+
+      class WrongClassName < Problem
+        def initialize(type) @type = type end
+        def message ; "Class name should be #@type." end
       end
 
       class UndefinedType < Problem
         def initialize(type) @type = type end
         def message ; "Undefined type:" end
         def details ; identifier_source_line_details end
+      end
+
+      class TooManyArguments < Problem
+        def initialize(max) @max = max end
+        def message ; "Too many arguments (only #@max allowed):" end
+        def details ; source_line_details end
+      end
+
+      class TooFewArguments < Problem
+        def initialize(min) @min = min end
+        def message ; "Too few arguments (expected #@min):" end
+        def details ; source_line_details end
       end
 
       class MissingReturnType < Problem
@@ -374,6 +416,11 @@ module ASAutotest
         def initialize(member) @member = member end
         def message ; "Interface not found:"  end
         def details ; member_details end
+      end
+
+      class InvalidNullComparison < Problem
+        def message ; "Invalid comparison to null." end
+        def details ; source_line_details end        
       end
 
       class TypeMismatch < Problem
