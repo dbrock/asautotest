@@ -43,7 +43,7 @@ module ASAutotest
 
     def run
       print_header
-      start_comet_server
+      # start_comet_server
       start_compiler_shell
       build
       monitor_changes
@@ -86,18 +86,29 @@ module ASAutotest
         :output_file_name => @test_binary_file_name
       @compiler_shell.start
     end
-  
+
     def monitor_changes
-      require "fssm"
-      monitor = FSSM::Monitor.new
-      each_source_directory do |source_directory|
-        monitor.path(source_directory, WATCH_GLOB) do |watch|
-          watch.update { |base, relative| handle_change }
-          watch.create { |base, relative| handle_change }
-          watch.delete { |base, relative| handle_change }
+      user_wants_out = false
+
+      Signal.trap("INT") do
+        user_wants_out = true
+        throw :asautotest_interrupt
+      end
+      
+      until user_wants_out
+        require "fssm"
+        monitor = FSSM::Monitor.new
+        each_source_directory do |source_directory|
+          monitor.path(source_directory, WATCH_GLOB) do |watch|
+            watch.update { handle_change }
+            watch.create { handle_change ; throw :asautotest_interrupt }
+            watch.delete { handle_change ; throw :asautotest_interrupt }
+          end
+        end
+        catch :asautotest_interrupt do
+          monitor.run
         end
       end
-      monitor.run
     end
 
     def each_source_directory(&block)
@@ -119,7 +130,7 @@ module ASAutotest
       end
 
       whisper "Ready."
-      @comet_pipe.puts
+      # @comet_pipe.puts
     end
 
     def compile
