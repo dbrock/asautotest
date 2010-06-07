@@ -234,7 +234,9 @@ module ASAutotest
         end
       end
 
-      def to_s ; name end
+      def to_s
+        name ? name : package
+      end
 
       def full_name
         "#{package}.#{name}"
@@ -305,6 +307,10 @@ module ASAutotest
           UndefinedMethod.new(Member[nil, $1])
         when /^Access of undefined property (\S+).$/i
           UndefinedProperty.new(Member[nil, $1])
+        when /^Access of possibly undefined property (\S+)/i
+          UndefinedProperty.new(Member[nil, $1])
+        when /^A file found in a source-path must have .*? '(\S+?)'/i
+          WrongPackage.new(Type[$1, nil])
         when /^Type was not found or was not a compile-time constant: (\S+).$/i
           UndefinedType.new(Type.parse($1))
         when /^Illegal assignment to a variable specified as constant.$/i
@@ -345,6 +351,11 @@ module ASAutotest
         def initialize(member) @member = member end
         def message ; "Undefined property:" end
         def details ; identifier_source_line_details end
+      end
+
+      class WrongPackage < Problem
+        def initialize(type) @type = type end
+        def message ; "Package should be #@type." end
       end
 
       class UndefinedType < Problem
