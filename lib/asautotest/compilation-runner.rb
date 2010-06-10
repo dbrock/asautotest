@@ -54,9 +54,11 @@ module ASAutotest
         if failed?
           status << "failed"
         elsif bootstrap?
-          status << "bootstrapped in #{compilation_time}"
+          status << "recompiled everything in #{compilation_time}"
         elsif did_anything?
-          status << "recompiled #{@n_recompiled_files} files in #{compilation_time}"
+          status << "recompiled #{@n_recompiled_files} "
+          status << "file#{@n_recompiled_files == 1 ? "" : "s"} "
+          status << "in #{compilation_time}"
         else
           status << "nothing changed"
         end
@@ -276,7 +278,7 @@ module ASAutotest
       end
 
       def sort_key
-        location ? location.sort_key : 0
+        location ? location.sort_key : [0]
       end
 
       def line_number
@@ -337,6 +339,8 @@ module ASAutotest
           InvalidNullComparison.new
         when /^Interface method ((?:get |set )?\S+) in namespace (\S+) not implemented by class (\S+).$/i
           MissingImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
+        when /^Interface method ((?:get |set )?\S+) in namespace (\S+) is implemented with an incompatible signature in class (\S+).$/i
+          WrongImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
         else
           Unknown.new(message)
         end
@@ -439,7 +443,7 @@ module ASAutotest
         end
       end
 
-      class MissingImplementation < Problem
+      class ImplementationProblem < Problem
         def initialize(member, implementing_type)
           @member = member
           @implementing_type = implementing_type
@@ -447,14 +451,26 @@ module ASAutotest
 
         def message
           if file.type == @implementing_type
-            "Missing implementation:"
+            "#{core_message}:"
           else
-            "Missing implementation in #@implementing_type:"
+            "#{core_message} in #@implementing_type:"
           end
         end
 
         def details
           "\e[0m  * \e[1m#{@member.name}\e[0m (#{@member.type})\e[0m"
+        end
+      end
+
+      class MissingImplementation < ImplementationProblem
+        def core_message
+          "Missing implementation"
+        end
+      end
+
+      class WrongImplementation < ImplementationProblem
+        def core_message
+          "Wrong implementation"
         end
       end
 
