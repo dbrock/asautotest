@@ -1,4 +1,7 @@
-asautotest is a tool for non-IDE ActionScript development.
+= asautotest
+
+asautotest is an automatic compilation and testing tool ideally suited
+for non-IDE ActionScript development.
 
 It operates by watching your entire source directory, triggering a
 recompilation as soon as any source file changes.  Compilation errors
@@ -8,31 +11,39 @@ to a minimum, it uses the Flex Compiler Shell (FCSH).
 There is also support for automatically running tests after a
 successful compilation, but this currently requires some manual glue,
 is undocumented and a bit hard to use.  For a working example of the
-kind of glue you need, see <test-project/src/specification.as>.
+kind of glue you need, see <tt><test-project/src/specification.as></tt>.
+
+== Installation
 
 You can install asautotest by simply symlinking it into your PATH:
 
   $ cd ~/bin ; ln -s ~/asautotest/bin/asautotest.rb asautotest
 
 To get started, you need fcsh, which is part of the Flex SDK.
-It should either be in your PATH, or you can set the `FCSH'
-environment variable to the location of the `fcsh' executable.
-(Unfortunately, symlinking `fcsh' into your PATH may not work; if so,
-you will likely end up preferring to set the environment variable.)
+It should either be in your PATH, or you can set the <tt>FCSH</tt>
+environment variable to the location of the <tt>fcsh</tt> executable.
+(Unfortunately, symlinking <tt>fcsh</tt> into your PATH may not work;
+if so, you will likely end up preferring to set the
+environment variable.)
+
+http://opensource.adobe.com/wiki/display/flexsdk/
+
+== Usage
 
 Once you have both asautotest and fcsh in place, try this:
 
   $ cd ~/my-project/src
   $ asautotest main.as
 
-This will compile `main.as' (using `my-project/src' as the source
-directory) and then go into sleep, waiting for changes.  As soon as
-some `*.as' or `*.mxml' file in <my-project/src> changes, it will wake
-up and perform a recompilation.
+This will compile <tt>main.as</tt> (using <tt>my-project/src</tt> as
+the source directory) and then go into sleep, waiting for changes.
+As soon as some <tt>*.as</tt> or <tt>*.mxml</tt> file in
+<tt><my-project/src></tt> changes, it will wake up and perform
+a recompilation.
 
 By default, the resulting SWF is placed in a temporary directory and
 then thrown away.  If you want to use the SWF, you need to specify
-where it should be placed, using the --output option:
+where it should be placed, using the <tt>--output</tt> option:
 
   $ asautotest main.as --output=../bin/my-project.swf
 
@@ -42,17 +53,19 @@ the command line:
   $ cd ~/my-project/src
   $ asautotest main.as . ~/my-other-project/src
 
-Note the `.', specifying the current directory.  Alternatively,
+Note the <tt>.</tt>, specifying the current directory.  Equivalently,
 
   $ cd ~
   $ asautotest main.as my-project/src my-other-project/src
 
-To link with SWC files, use the --library option:
+To link with SWC files, use the <tt>--library</tt> option:
 
   $ asautotest main.as --library=../lib/some-library.swc
 
-------------------------------------------------------------
-Copyright (C) 2010  Go Interactive
+== License
+
+Copyright (C) 2010  Go Interactive <http://gointeractive.se>
+
 This file is part of asautotest.
 
 asautotest is free software: you can redistribute it and/or modify
