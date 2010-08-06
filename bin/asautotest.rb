@@ -11,15 +11,14 @@ require "asautotest/compiler-shell"
 require "asautotest/compilation-runner"
 require "asautotest/test-runner"
 require "asautotest/utilities"
-require "asautotest/comet-server"
+# require "asautotest/comet-server"
 
 module ASAutotest
+  FCSH = ENV["FCSH"] || "fcsh"
+  FLASHPLAYER = ENV["FLASHPLAYER"] || "flashplayer"
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
-  MXMLC = "/Users/daniel/Downloads/flex-4-sdk/bin/mxmlc"
-  FCSH = "/Users/daniel/Downloads/flex-4-sdk/bin/fcsh"
-  FLASHPLAYER = "/Applications/Flash Player.app/Contents/MacOS/Flash Player"
   TEST_PORT = 50102
-  COMET_PORT = 50103
+  # COMET_PORT = 50103
 
   class Main
     include Logging
@@ -62,20 +61,26 @@ module ASAutotest
         say "Library: ".ljust(20) + library
       end
 
-      say "Not running any tests." if @no_test
+      if @output_file_name
+        say "Output file: ".ljust(20) + @output_file_name
+      else
+        say "Not saving output SWF (use --output=FILE to specify)."
+      end
+
+      say "Not running any tests (use --test to enable)." if @no_test
       say "Running in verbose mode." if Logging.verbose?
 
       new_logging_section
     end
 
-    def start_comet_server
-      read_pipe, @comet_pipe = IO.pipe
-      fork do
-        @comet_pipe.close
-        CometServer.new(COMET_PORT, read_pipe).run
-      end
-      read_pipe.close
-    end
+    # def start_comet_server
+    #   read_pipe, @comet_pipe = IO.pipe
+    #   fork do
+    #     @comet_pipe.close
+    #     CometServer.new(COMET_PORT, read_pipe).run
+    #   end
+    #   read_pipe.close
+    # end
 
     def start_compiler_shell
       @test_binary_file_name = get_test_binary_file_name
@@ -164,20 +169,26 @@ end
 
 $normal_arguments = []
 $verbose = false
-$no_test = false
+$no_test = true
 $output_file_name = nil
 $library_path = []
 
-for argument in ARGV do
-  case argument
+until ARGV.empty?
+  case argument = ARGV.shift
   when "--verbose"
     $verbose = true
+  when "--test"
+    $no_test = false
   when "--no-test"
     $no_test = true
   when /--output=(\S+)/
     $output_file_name = $1
+  when /--output/
+    $output_file_name = ARGV.shift
   when /--library=(\S+)/
     $library_path << $1
+  when /--library/
+    $library_path = ARGV.shift
   when /^-/
     warn "unrecognized argument: #{argument}"
   else
@@ -185,9 +196,11 @@ for argument in ARGV do
   end
 end
 
-unless $normal_arguments.size >= 2
+if $normal_arguments.size == 0
   warn "usage: asautotest [OPTIONS...] SOURCE-FILE SOURCE-DIRS..."
   exit -1
+elsif $normal_arguments.size == 1
+  $normal_arguments << "."
 end
 
 ASAutotest::Logging.verbose = $verbose

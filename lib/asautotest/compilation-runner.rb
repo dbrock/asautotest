@@ -71,7 +71,7 @@ module ASAutotest
 
     def print_report
       for line in @unrecognized_lines
-        puts "\e[1;31m??\e[0;37m #{line}\e[0m"
+        barf line
       end
 
       for name, file in @problematic_files do
@@ -102,7 +102,6 @@ module ASAutotest
           line_number = $2.to_i
           column_number = $3.to_i - 1
           message = $4
-          # Read four lines and pick out the second.
           source_line = read_lines(4)[1]
 
           location = Location[line_number, column_number, source_line]
@@ -267,6 +266,7 @@ module ASAutotest
       attr_accessor :file
 
       def details ; nil end
+      def extra_details ; nil end
       
       def source_line
         if location
@@ -341,6 +341,8 @@ module ASAutotest
           MissingImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
         when /^Interface method ((?:get |set )?\S+) in namespace (\S+) is implemented with an incompatible signature in class (\S+).$/i
           WrongImplementation.new(Member[Type.parse($2), $1], Type.parse($3))
+        when /^A file (.*) must have an externally visible definition./
+          MissingPublicDefinition.new
         else
           Unknown.new(message)
         end
@@ -396,6 +398,11 @@ module ASAutotest
         def initialize(type) @type = type end
         def message ; "Undefined type:" end
         def details ; identifier_source_line_details end
+        def extra_details
+          if problematic_identifier == "Sprite"
+            "Hint: It’s flash.display.Sprite."
+          end
+        end
       end
 
       class TooManyArguments < Problem
@@ -474,9 +481,17 @@ module ASAutotest
         end
       end
 
+      class MissingPublicDefinition < Problem
+        def message ; "Missing public class or function definition." end
+      end
+
       class Unknown < Problem
         def initialize(message) @message = message end
-        def message ; @message end
+
+        def message
+          @message.sub(/^Error:\s+/, "")
+        end
+
         def details
           if source_line
             source_line_details
@@ -495,6 +510,12 @@ module ASAutotest
           print details_column
           print line_number_column
           puts
+        end
+
+        if extra_details
+          for line in extra_details
+            puts "\e[34m    #{line.chomp}\e[0m"
+          end
         end
       end
 
@@ -531,8 +552,26 @@ module ASAutotest
       end
 
       def identifier_source_line_details
+        "\e[0m  ... #{problematic_identifier_pre}" +
+          "\e[1;4m#{problematic_identifier}\e[0m" +
+          "#{problematic_identifier_post}"
+      end
+
+      def problematic_identifier_pre
+        identifier_source_line_parts[0]
+      end
+
+      def problematic_identifier
+        identifier_source_line_parts[1]
+      end
+
+      def problematic_identifier_post
+        identifier_source_line_parts[2]
+      end
+
+      def identifier_source_line_parts
         source_line =~ /^(.{#{column_number}})([\w$]+)(.*)$/
-        "\e[0m  ... #$1\e[1;4m#$2\e[0m#$3\e[0m"
+        [$1, $2, $3]
       end
 
       def member_details

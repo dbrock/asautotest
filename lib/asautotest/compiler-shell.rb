@@ -1,5 +1,9 @@
+# -*- coding: utf-8 -*-
 module ASAutotest
   class CompilerShell
+    PROMPT = "\n(fcsh) "
+    class PromptNotFound < Exception ; end
+
     include Logging
 
     attr_reader :output_file_name
@@ -17,14 +21,26 @@ module ASAutotest
         @process = IO.popen("#{FCSH} 2>&1", "r+")
         read_until_prompt
       end
+    rescue PromptNotFound => error
+      shout "Could not find FCSH prompt:"
+      for line in error.message.lines do
+        barf line.chomp
+      end
+      if error.message.include? "command not found"
+        shout "Please make sure that fcsh is in your PATH."
+        shout "Alternatively, set the ‘FCSH’ environment variable."
+      end
+      exit -1
     end
 
-    PROMPT = "\n(fcsh) "
-
     def read_until_prompt
-      build_string do |result|
-        result << @process.readpartial(100) until result.include? PROMPT
-      end.lines.entries[0 .. -2]
+      result = ""
+      until result.include? PROMPT
+        result << @process.readpartial(100) 
+      end
+      result.lines.entries[0 .. -2]
+    rescue EOFError
+      raise PromptNotFound, result
     end
 
     def run_compilation

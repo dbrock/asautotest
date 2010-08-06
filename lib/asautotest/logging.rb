@@ -29,7 +29,7 @@ module ASAutotest
     end
 
     def shout(message)
-      say "!! #{message}"
+      say "\e[1;31m!!\e[0m #{message}"
     end
 
     def whisper(*arguments, &block)
@@ -38,6 +38,10 @@ module ASAutotest
       else
         whisper_without_block(*arguments)
       end
+    end
+
+    def barf(message)
+      puts "\e[1;31m??\e[0m #{message}"
     end
 
     # ------------------------------------------------------
