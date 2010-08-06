@@ -1,0 +1,69 @@
+asautotest is a tool for non-IDE ActionScript development.
+
+It operates by watching your entire source directory, triggering a
+recompilation as soon as any source file changes.  Compilation errors
+are reported to the terminal in a nice way.  To keep compilation times
+to a minimum, it uses the Flex Compiler Shell (FCSH).
+
+There is also support for automatically running tests after a
+successful compilation, but this currently requires some manual glue,
+is undocumented and a bit hard to use.  For a working example of the
+kind of glue you need, see <test-project/src/specification.as>.
+
+You can install asautotest by simply symlinking it into your PATH:
+
+  $ cd ~/bin ; ln -s ~/asautotest/bin/asautotest.rb asautotest
+
+To get started, you need fcsh, which is part of the Flex SDK.
+It should either be in your PATH, or you can set the `FCSH'
+environment variable to the location of the `fcsh' executable.
+(Unfortunately, symlinking `fcsh' into your PATH may not work; if so,
+you will likely end up preferring to set the environment variable.)
+
+Once you have both asautotest and fcsh in place, try this:
+
+  $ cd ~/my-project/src
+  $ asautotest main.as
+
+This will compile `main.as' (using `my-project/src' as the source
+directory) and then go into sleep, waiting for changes.  As soon as
+some `*.as' or `*.mxml' file in <my-project/src> changes, it will wake
+up and perform a recompilation.
+
+By default, the resulting SWF is placed in a temporary directory and
+then thrown away.  If you want to use the SWF, you need to specify
+where it should be placed, using the --output option:
+
+  $ asautotest main.as --output=../bin/my-project.swf
+
+If you have multiple source directores, you need to list them all on
+the command line:
+
+  $ cd ~/my-project/src
+  $ asautotest main.as . ~/my-other-project/src
+
+Note the `.', specifying the current directory.  Alternatively,
+
+  $ cd ~
+  $ asautotest main.as my-project/src my-other-project/src
+
+To link with SWC files, use the --library option:
+
+  $ asautotest main.as --library=../lib/some-library.swc
+
+------------------------------------------------------------
+Copyright (C) 2010  Go Interactive
+This file is part of asautotest.
+
+asautotest is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+asautotest is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with asautotest.  If not, see <http://www.gnu.org/licenses/>.
