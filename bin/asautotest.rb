@@ -28,14 +28,12 @@ require "asautotest/compiler-shell"
 require "asautotest/compilation-runner"
 require "asautotest/test-runner"
 require "asautotest/utilities"
-# require "asautotest/comet-server"
 
 module ASAutotest
   FCSH = ENV["FCSH"] || "fcsh"
   FLASHPLAYER = ENV["FLASHPLAYER"] || "flashplayer"
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
   TEST_PORT = 50102
-  # COMET_PORT = 50103
 
   class Main
     include Logging
@@ -59,7 +57,6 @@ module ASAutotest
 
     def run
       print_header
-      # start_comet_server
       start_compiler_shell
       build
       monitor_changes
@@ -89,15 +86,6 @@ module ASAutotest
 
       new_logging_section
     end
-
-    # def start_comet_server
-    #   read_pipe, @comet_pipe = IO.pipe
-    #   fork do
-    #     @comet_pipe.close
-    #     CometServer.new(COMET_PORT, read_pipe).run
-    #   end
-    #   read_pipe.close
-    # end
 
     def start_compiler_shell
       @test_binary_file_name = get_test_binary_file_name
@@ -152,7 +140,6 @@ module ASAutotest
       end
 
       whisper "Ready."
-      # @comet_pipe.puts
     end
 
     def compile
