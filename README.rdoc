@@ -10,8 +10,9 @@ to a minimum, it uses the Flex Compiler Shell (FCSH).
 
 There is also support for automatically running tests after a
 successful compilation, but this currently requires some manual glue,
-is undocumented and a bit hard to use.  For a working example of the
-kind of glue you need, see <tt><test-project/src/specification.as></tt>.
+is undocumented and a bit hard to set up (once set up, though, it
+works really well).  For a working example of the kind of glue you
+need, see <tt><test-project/src/specification.as></tt>.
 
 == Installation
 
