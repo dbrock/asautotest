@@ -38,7 +38,7 @@ Once you have both asautotest and fcsh in place, try this:
   $ asautotest main.as
 
 This will compile <tt>main.as</tt> (using <tt>my-project/src</tt> as
-the source directory) and then go into sleep, waiting for changes.
+the source directory) and then go to sleep, waiting for changes.
 As soon as some <tt>*.as</tt> or <tt>*.mxml</tt> file in
 <tt><my-project/src></tt> changes, it will wake up and perform
 a recompilation.
