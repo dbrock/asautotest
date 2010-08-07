@@ -58,7 +58,7 @@ the command line:
 Note the <tt>.</tt>, specifying the current directory.  Equivalently,
 
   $ cd ~
-  $ asautotest main.as my-project/src my-other-project/src
+  $ asautotest my-project/src/main.as my-project/src my-other-project/src
 
 To link with SWC files, use the <tt>--library</tt> option:
 
