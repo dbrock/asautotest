@@ -27,7 +27,8 @@ environment variable to the location of the <tt>fcsh</tt> executable.
 if so, you will likely end up preferring to set the
 environment variable.)
 
-http://opensource.adobe.com/wiki/display/flexsdk/
+You can find the Flex SDK here:
+http://opensource.adobe.com/wiki/display/flexsdk
 
 == Usage
 
