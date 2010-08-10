@@ -187,7 +187,7 @@ until ARGV.empty?
     $no_test = true
   when /--output=(\S+)/
     $output_file_name = $1
-  when /--output/
+  when /--output/, /-o/
     $output_file_name = ARGV.shift
   when /--library=(\S+)/
     $library_path << $1
