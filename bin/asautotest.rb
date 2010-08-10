@@ -49,6 +49,7 @@ module ASAutotest
       @library_path = options[:library_path].map do |file_name|
         File.expand_path(file_name)
       end
+      @typing = options[:typing]
     end
 
     def self.run(*arguments)
@@ -83,6 +84,10 @@ module ASAutotest
 
       say "Not running any tests (use --test to enable)." if @no_test
       say "Running in verbose mode." if Logging.verbose?
+
+      if @typing == :dynamic
+        say "Not warning about missing type declarations."
+      end
 
       new_logging_section
     end
@@ -143,7 +148,8 @@ module ASAutotest
     end
 
     def compile
-      @compilation = CompilationRunner.new(@compiler_shell)
+      @compilation = CompilationRunner.new \
+        @compiler_shell, :typing => @typing
       @compilation.run
     end
 
@@ -176,6 +182,7 @@ $verbose = false
 $no_test = true
 $output_file_name = nil
 $library_path = []
+$typing = nil
 
 until ARGV.empty?
   case argument = ARGV.shift
@@ -193,6 +200,10 @@ until ARGV.empty?
     $library_path << $1
   when "--library", "-l"
     $library_path = ARGV.shift
+  when "--dynamic-typing"
+    $typing = :dynamic
+  when "--static-typing"
+    $typing = :static
   when /^-/
     warn "asautotest: unrecognized argument: #{argument}"
   else
@@ -213,4 +224,5 @@ ASAutotest::Main.run \
   $normal_arguments[1..-1],
   :no_test? => $no_test,
   :output_file_name => $output_file_name,
-  :library_path => $library_path
+  :library_path => $library_path,
+  :typing => $typing

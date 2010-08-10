@@ -51,6 +51,10 @@ module ASAutotest
       say "\e[1;31m!!\e[0m #{message}"
     end
 
+    def hint(message)
+      say "\e[34m#{message}\e[0m"
+    end
+
     def whisper(*arguments, &block)
       if block_given?
         whisper_with_block(*arguments, &block)

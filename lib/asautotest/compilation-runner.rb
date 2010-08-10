@@ -25,11 +25,12 @@ module ASAutotest
 
     attr_reader :n_recompiled_files
 
-    def initialize(shell)
+    def initialize(shell, options)
       @shell = shell
       @problematic_files = {}
       @n_recompiled_files = nil
       @unrecognized_lines = []
+      @typing = options[:typing]
     end
 
     def source_directories
@@ -97,6 +98,16 @@ module ASAutotest
       end
 
       puts if not @problematic_files.empty?
+
+      if @typing == nil and all_problems.any? &:type_warning?
+        puts
+        hint "Use --dynamic-typing to disable type declaration warnings,"
+        hint "or --static-typing to disable this hint."
+      end
+    end
+
+    def all_problems
+      @problematic_files.map(&:problems).flatten
     end
 
     def parse_output
@@ -137,7 +148,8 @@ module ASAutotest
     end
 
     def add_problem(file_name, problem)
-      get_problematic_file(file_name) << problem
+      get_problematic_file(file_name) << problem unless
+        @typing == :dynamic and problem.type_warning?
     end
 
     def get_problematic_file(file_name)
@@ -153,6 +165,8 @@ module ASAutotest
     LINE_NUMBER_COLUMN_WIDTH = 4
 
     class ProblematicFile
+      include Logging
+
       def initialize(file_name, source_directories)
         @file_name = file_name
         @source_directories = source_directories
@@ -285,6 +299,7 @@ module ASAutotest
 
       def details ; nil end
       def extra_details ; nil end
+      def type_warning? ; false end
       
       def source_line
         if location
@@ -349,6 +364,8 @@ module ASAutotest
           TooFewArguments.new($1)
         when /^return value for function '(\S+)' has no type declaration.$/i
           MissingReturnType.new(Member[nil, $1])
+        when /^variable '(\S+)' has no type declaration.$/i
+          MissingTypeDeclaration.new
         when /^Interface (\S+) was not found.$/i
           InterfaceNotFound.new(Type.parse($1))
         when /^Implicit coercion of a value of type (\S+) to an unrelated type (\S+).$/i
@@ -439,6 +456,13 @@ module ASAutotest
         def initialize(member) @member = member end
         def message ; "Missing return type:"  end
         def details ; member_details end
+        def type_warning? ; true end
+      end
+
+      class MissingTypeDeclaration < Problem
+        def message ; "Missing type:" end
+        def details ; identifier_source_line_details end
+        def type_warning? ; true end
       end
 
       class InterfaceNotFound < Problem
