@@ -185,16 +185,16 @@ until ARGV.empty?
     $no_test = false
   when "--no-test"
     $no_test = true
-  when /--output=(\S+)/
+  when /^--output=(\S+)/
     $output_file_name = $1
-  when /--output/, /-o/
+  when "--output", "-o"
     $output_file_name = ARGV.shift
-  when /--library=(\S+)/
+  when /^--library=(\S+)/
     $library_path << $1
-  when /--library/, /-l/
+  when "--library", "-l"
     $library_path = ARGV.shift
   when /^-/
-    warn "unrecognized argument: #{argument}"
+    warn "asautotest: unrecognized argument: #{argument}"
   else
     $normal_arguments << argument
   end
