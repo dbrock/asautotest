@@ -191,7 +191,7 @@ until ARGV.empty?
     $output_file_name = ARGV.shift
   when /--library=(\S+)/
     $library_path << $1
-  when /--library/
+  when /--library/, /-l/
     $library_path = ARGV.shift
   when /^-/
     warn "unrecognized argument: #{argument}"
