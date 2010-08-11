@@ -184,6 +184,10 @@ $output_file_name = nil
 $library_path = []
 $typing = nil
 
+def print_usage
+  warn "usage: asautotest [OPTIONS...] SOURCE-FILE SOURCE-DIRS..."
+end
+
 until ARGV.empty?
   case argument = ARGV.shift
   when "--verbose"
@@ -206,14 +210,14 @@ until ARGV.empty?
     $typing = :static
   when /^-/
     warn "asautotest: unrecognized argument: #{argument}"
+    print_usage ; exit -1
   else
     $normal_arguments << argument
   end
 end
 
 if $normal_arguments.size == 0
-  warn "usage: asautotest [OPTIONS...] SOURCE-FILE SOURCE-DIRS..."
-  exit -1
+  print_usage ; exit -1
 elsif $normal_arguments.size == 1
   $normal_arguments << "."
 end
