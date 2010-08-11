@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
 # policy-file-server.rb --- simple Flash security policy file server
 # Copyright (C) 2010  Go Interactive

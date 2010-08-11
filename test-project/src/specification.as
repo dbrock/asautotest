@@ -21,7 +21,7 @@ package
 
     private function handleConnected(event : Event) : void
     {
-      socket.writeUTFBytes("Hello, this is a test.\n");      
+      socket.writeUTFBytes("Hello, this is a test.\n");
       socket.writeUTFBytes("plan " + test.size + "\n");
 
       runTests();
