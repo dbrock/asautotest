@@ -99,15 +99,14 @@ module ASAutotest
 
       puts if not @problematic_files.empty?
 
-      if @typing == nil and all_problems.any? &:type_warning?
-        puts
+      if @typing == nil and any_type_warnings?
         hint "Use --dynamic-typing to disable type declaration warnings,"
         hint "or --static-typing to disable this hint."
       end
     end
 
-    def all_problems
-      @problematic_files.map(&:problems).flatten
+    def any_type_warnings?
+      @problematic_files.values.any? &:any_type_warnings?
     end
 
     def parse_output
@@ -181,6 +180,10 @@ module ASAutotest
 
       def type
         Type[dirname.gsub(/\/|\\/, "."), basename.sub(/\..*$/, "")]
+      end
+
+      def any_type_warnings?
+        @problems.any? &:type_warning?
       end
 
       def problem_before(next_problem)
