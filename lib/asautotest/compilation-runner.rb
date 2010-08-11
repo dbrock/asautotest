@@ -362,9 +362,11 @@ module ASAutotest
         when /^Method marked override must override another method.$/i
           BogusOverride.new
         when /^Incorrect number of arguments.\s* Expected no more than (\d+).$/i
-          TooManyArguments.new($1)
+          TooManyArguments.new($1.to_i)
+        when /^Incorrect number of arguments.\s* Expected (0).$/i
+          TooManyArguments.new($1.to_i)
         when /^Incorrect number of arguments.\s* Expected (\d+).$/i
-          TooFewArguments.new($1)
+          TooFewArguments.new($1.to_i)
         when /^return value for function '(\S+)' has no type declaration.$/i
           MissingReturnType.new(Member[nil, $1])
         when /^(?:variable|parameter) '(\S+)' has no type declaration.$/i
@@ -445,7 +447,13 @@ module ASAutotest
 
       class TooManyArguments < Problem
         def initialize(max) @max = max end
-        def message ; "Too many arguments (only #@max allowed):" end
+        def message
+          if @max == 0
+            "No arguments allowed:"
+          else
+            "Too many arguments (only #@max allowed):"
+          end
+        end
         def details ; source_line_details end
       end
 
