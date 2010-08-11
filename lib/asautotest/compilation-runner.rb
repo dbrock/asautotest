@@ -367,7 +367,7 @@ module ASAutotest
           TooFewArguments.new($1)
         when /^return value for function '(\S+)' has no type declaration.$/i
           MissingReturnType.new(Member[nil, $1])
-        when /^variable '(\S+)' has no type declaration.$/i
+        when /^(?:variable|parameter) '(\S+)' has no type declaration.$/i
           MissingTypeDeclaration.new
         when /^Interface (\S+) was not found.$/i
           InterfaceNotFound.new(Type.parse($1))
