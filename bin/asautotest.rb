@@ -203,7 +203,7 @@ until ARGV.empty?
   when /^--library=(\S+)/
     $library_path << $1
   when "--library", "-l"
-    $library_path = ARGV.shift
+    $library_path << ARGV.shift
   when "--dynamic-typing"
     $typing = :dynamic
   when "--static-typing"
