@@ -1,27 +1,27 @@
 #!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
-# policy-file-server.rb --- simple Flash security policy file server
+# policy-server.rb --- simple Flash security policy file server
 # Copyright (C) 2010  Go Interactive
 
-# This file is part of asautotest.
+# This file is part of ASAutotest.
 
-# asautotest is free software: you can redistribute it and/or modify
+# ASAutotest is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# asautotest is distributed in the hope that it will be useful,
+# ASAutotest is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with asautotest.  If not, see <http://www.gnu.org/licenses/>.
+# along with ASAutotest.  If not, see <http://www.gnu.org/licenses/>.
 
 require "socket"
 require "timeout"
 
-class PolicyFileServer
+class PolicyServer
   PORT = 843
 
   def initialize
@@ -44,7 +44,7 @@ class PolicyFileServer
   end
 
   def info_string(message)
-    "policy-file-server: #{message}"
+    "policy-server: #{message}"
   end
 
   def begin_info(message)
@@ -85,4 +85,4 @@ class PolicyFileServer
   end
 end
 
-PolicyFileServer.new.run
+PolicyServer.new.run

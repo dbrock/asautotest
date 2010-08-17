@@ -2,20 +2,20 @@
 # test-runner.rb --- run tests and report the results
 # Copyright (C) 2010  Go Interactive
 
-# This file is part of asautotest.
+# This file is part of ASAutotest.
 
-# asautotest is free software: you can redistribute it and/or modify
+# ASAutotest is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# asautotest is distributed in the hope that it will be useful,
+# ASAutotest is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with asautotest.  If not, see <http://www.gnu.org/licenses/>.
+# along with ASAutotest.  If not, see <http://www.gnu.org/licenses/>.
 
 require "socket"
 require "timeout"
@@ -24,6 +24,7 @@ require "rexml/document"
 module ASAutotest
   class TestRunner
     class TestMisbehaving < Exception ; end
+    class TestMisbehavingFatally < Exception ; end
 
     include Logging
 
@@ -34,8 +35,9 @@ module ASAutotest
     EXPECTED_GREETING.size >= POLICY_FILE_REQUEST.size or
       raise "Internal error: Expected greeting is too short."
 
-    def initialize(binary_name)
+    def initialize(binary_name, port)
       @binary_name = binary_name
+      @port = port
       @n_planned_tests = nil
       @suites = {}
     end
@@ -45,6 +47,8 @@ module ASAutotest
       with_server_running { run_test }
     rescue TestMisbehaving
       shout "Terminating misbehaving test."
+    rescue TestMisbehavingFatally
+      exit -1
     end
 
     def run_test
@@ -67,7 +71,7 @@ module ASAutotest
     end
 
     def start_server
-      @server = TCPServer.new(TEST_PORT)
+      @server = TCPServer.new(@port)
       @server.setsockopt(Socket::SOL_SOCKET, Socket::SO_REUSEADDR, true)
     end
 
@@ -102,6 +106,11 @@ module ASAutotest
       raise TestMisbehaving
     end
 
+    def fatal_misbehavior!(*descriptions)
+      print_warnings(descriptions)
+      raise TestMisbehavingFatally
+    end
+
     def print_warnings(warnings)
       for warning in warnings do
         shout warning
@@ -116,7 +125,7 @@ module ASAutotest
         @socket = Timeout.timeout(4) { @server.accept }
       end
     rescue Timeout::Error
-      misbehavior! "Test did not connect to localhost:#{TEST_PORT}."
+      misbehavior! "Test did not connect to localhost:#@port."
     end
 
     def shake_hands
@@ -136,9 +145,10 @@ module ASAutotest
       when nil
         misbehavior! "Test closed connection without sending anything."
       when POLICY_FILE_REQUEST
-        misbehavior! \
-          "Recieved policy file request; aborting.",
-          "Please set up a policy server on port 843."
+        fatal_misbehavior! \
+          "Recieved cross-domain policy file request; aborting.",
+          "Please run a policy server on port 843 (root usually needed).",
+          "See ‘bin/policy-server.rb’ in the ASAutotest distribution."
       else
         misbehavior! "Unrecognized greeting: #{greeting.inspect}"
       end

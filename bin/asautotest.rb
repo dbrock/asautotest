@@ -1,31 +1,36 @@
 #!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
 # asautotest --- automatically compile and test ActionScript code
 # Copyright (C) 2010  Go Interactive
 
-# This file is part of asautotest.
+# This file is part of ASAutotest.
 
-# asautotest is free software: you can redistribute it and/or modify
+# ASAutotest is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# asautotest is distributed in the hope that it will be useful,
+# ASAutotest is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with asautotest.  If not, see <http://www.gnu.org/licenses/>.
+# along with ASAutotest.  If not, see <http://www.gnu.org/licenses/>.
 
-require "rubygems"
 require "pathname"
+require "rubygems"
+require "tmpdir"
 
 $: << File.join(File.dirname(Pathname.new(__FILE__).realpath), "..", "lib")
 
-require "asautotest/logging"
-require "asautotest/stopwatch"
-require "asautotest/compiler-shell"
+require "asautotest/compilation-output-parser"
+require "asautotest/compilation-result"
 require "asautotest/compilation-runner"
+require "asautotest/compiler-shell"
+require "asautotest/logging"
+require "asautotest/problematic-file"
+require "asautotest/stopwatch"
 require "asautotest/test-runner"
 require "asautotest/utilities"
 
@@ -33,22 +38,83 @@ module ASAutotest
   FCSH = ENV["FCSH"] || "fcsh"
   FLASHPLAYER = ENV["FLASHPLAYER"] || "flashplayer"
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
-  TEST_PORT = 50102
+  DEFAULT_TEST_PORT = 50102
+
+  class CompilationRequest
+    attr_reader :source_file_name
+    attr_reader :source_directories
+    attr_reader :library_file_names
+    attr_reader :test_port
+    attr_reader :output_file_name
+
+    def test? ; @test end
+    def temporary_output? ; @temporary_output end
+
+    def initialize(options)
+      @source_file_name = options[:source_file_name]
+      @source_directories = options[:source_directories]
+      @library_file_names = options[:library_file_names]
+      @test = options[:test?]
+      @test_port = options[:test_port] || DEFAULT_TEST_PORT
+
+      if options.include? :output_file_name
+        @output_file_name = File.expand_path(options[:output_file_name])
+      else
+        @output_file_name = get_temporary_output_file_name
+        @temporary_output = true
+      end
+    end
+
+    def get_temporary_output_file_name
+      "#{Dir.tmpdir}/asautotest-#{get_random_token}.swf"
+    end
+
+    def get_random_token
+      "#{(Time.new.to_f * 1000).to_i}-#{(rand * 1_000_000).to_i}"
+    end
+
+    def compile_command
+      if @compile_id
+        %{compile #@compile_id}
+      else
+        build_string do |result|
+          result << %{mxmlc}
+          for source_directory in @source_directories do
+            result << %{ -compiler.source-path=#{source_directory}}
+          end
+          for library in @library_file_names do
+            result << %{ -compiler.library-path=#{library}}
+          end
+          result << %{ -output=#@output_file_name}
+          result << %{ -static-link-runtime-shared-libraries}
+          result << %{ #@source_file_name}
+        end
+      end
+    end
+
+    attr_accessor :compile_id
+    attr_accessor :index
+  end
 
   class Main
     include Logging
 
-    def initialize(test_source_file_name, source_directories, options)
-      @source_directories = source_directories.map do |directory_name|
-        File.expand_path(directory_name) + "/"
+    def initialize(options)
+      @compilation_requests = options[:compilation_requests].map do |options|
+        options[:source_file_name] =
+          File.expand_path(options[:source_file_name])
+        implicit_source_directory =
+          File.dirname(File.expand_path(options[:source_file_name])) + "/"
+        options[:source_directories] = options[:source_directories].
+          map { |directory_name| File.expand_path(directory_name) + "/" }
+        options[:source_directories] << implicit_source_directory unless
+          options[:source_directories].include? implicit_source_directory
+        options[:library_file_names] = options[:library_file_names].
+          map { |file_name| File.expand_path(file_name) }
+
+        CompilationRequest.new(options)
       end
-      @test_source_file_name = File.expand_path(test_source_file_name)
-      @no_test = options[:no_test?]
-      @output_file_name = File.expand_path(options[:output_file_name]) if
-        options[:output_file_name]
-      @library_path = options[:library_path].map do |file_name|
-        File.expand_path(file_name)
-      end
+
       @typing = options[:typing]
     end
 
@@ -63,26 +129,44 @@ module ASAutotest
       monitor_changes
     end
 
+    def say_tabbed(left, right)
+      say("#{left} ".ljust(21) + right)
+    end
+
+    def format_file_name(file_name)
+      if file_name.start_with? ENV["HOME"]
+        file_name.sub(ENV["HOME"], "~")
+      else
+        file_name
+      end
+    end
+
     def print_header
       new_logging_section
 
-      say "Source file: ".ljust(20) + @test_source_file_name
+      for request in @compilation_requests
+        say File.basename(request.source_file_name)
+        
+        for source_directory in request.source_directories
+          say_tabbed "  Source directory:",
+            format_file_name(source_directory)
+        end
+        
+        for library in request.library_file_names
+          say_tabbed "  Library:", format_file_name(library)
+        end
 
-      for source_directory in @source_directories do
-        say "Source directory: ".ljust(20) + source_directory
+        if request.temporary_output? and not request.test?
+          say "  Not saving output SWF (use --output=FILE.swf to specify)."
+          say "  Not running as test (use --test to enable)."
+        elsif not request.temporary_output?
+          say_tabbed "  Output file:",
+            format_file_name(request.output_file_name)
+        elsif request.test?
+          say "  Running as test (using port #{request.test_port})."
+        end
       end
 
-      for library in @library_path do
-        say "Library: ".ljust(20) + library
-      end
-
-      if @output_file_name
-        say "Output file: ".ljust(20) + @output_file_name
-      else
-        say "Not saving output SWF (use --output=FILE to specify)."
-      end
-
-      say "Not running any tests (use --test to enable)." if @no_test
       say "Running in verbose mode." if Logging.verbose?
 
       if @typing == :dynamic
@@ -93,12 +177,9 @@ module ASAutotest
     end
 
     def start_compiler_shell
-      @test_binary_file_name = get_test_binary_file_name
       @compiler_shell = CompilerShell.new \
-        :source_directories => @source_directories,
-        :library_path => @library_path,
-        :input_file_name => @test_source_file_name,
-        :output_file_name => @test_binary_file_name
+        :compilation_requests => @compilation_requests,
+        :typing => @typing
       @compiler_shell.start
     end
 
@@ -113,21 +194,23 @@ module ASAutotest
       until user_wants_out
         require "fssm"
         monitor = FSSM::Monitor.new
-        each_source_directory do |source_directory|
+
+        for source_directory in source_directories
           monitor.path(source_directory, WATCH_GLOB) do |watch|
             watch.update { handle_change }
             watch.create { handle_change ; throw :asautotest_interrupt }
             watch.delete { handle_change ; throw :asautotest_interrupt }
           end
         end
+
         catch :asautotest_interrupt do
           monitor.run
         end
       end
     end
 
-    def each_source_directory(&block)
-      @source_directories.each(&block)
+    def source_directories
+      @compilation_requests.map(&:source_directories).flatten.uniq
     end
 
     def handle_change
@@ -139,9 +222,16 @@ module ASAutotest
     def build
       compile
 
-      if @compilation.successful?
-        run_tests if @compilation.did_anything? unless @no_test
-        delete_test_binary unless @no_test
+      for summary in @compilation.result.summaries
+        if summary[:successful?]
+          if @compilation.result.successful? and summary[:request].test?
+            run_test(summary[:request])
+          end
+
+          if summary[:request].temporary_output?
+            delete_output_file(summary[:request].output_file_name)
+          end
+        end
       end
 
       whisper "Ready."
@@ -153,80 +243,103 @@ module ASAutotest
       @compilation.run
     end
 
-    def run_tests
-      TestRunner.new(@test_binary_file_name).run
+    def run_test(request)
+      TestRunner.new(request.output_file_name, request.test_port).run
     end
 
-    def delete_test_binary
+    def delete_output_file(file_name)
       begin
-        File.delete(@test_binary_file_name)
+        File.delete(file_name)
         whisper "Deleted binary."
       rescue Exception => exception
         shout "Failed to delete binary: #{exception.message}"
       end
     end
-
-    def get_test_binary_file_name
-      @output_file_name ||
-        "/tmp/asautotest/#{get_timestamp}-#{rand}.swf"
-    end
-
-    def get_timestamp
-      (Time.new.to_f * 100).to_i
-    end
   end
 end
 
-$normal_arguments = []
-$verbose = false
-$no_test = true
-$output_file_name = nil
-$library_path = []
-$typing = nil
-
 def print_usage
-  warn "usage: asautotest [OPTIONS...] SOURCE-FILE SOURCE-DIRS..."
+  warn "usage: asautotest [-I SRCDIR|-l FILE.swc]... FILE.as [--test|-o FILE.swf]"
+  warn "       asautotest [OPTIONS...] FILE.as [OPTION] [-- FILE.as [OPTION]]..."
 end
 
+def new_compilation_request
+  { :source_directories => [], :library_file_names => [] }
+end
+
+$compilation_requests = [new_compilation_request]
+$typing = nil
+$verbose = false
+$parsing_global_options = false
+
 until ARGV.empty?
+  request = $compilation_requests.last
+  requests = $parsing_global_options ? $compilation_requests : [request]
   case argument = ARGV.shift
-  when "--verbose"
-    $verbose = true
+  when /^--output(?:=(\S+))?$/, "-o"
+    if request.include? :output_file_name
+      warn "asautotest: only one ‘--output’ allowed per source file"
+      warn "asautotest: use ‘--’ to separate multiple source files"
+      print_usage ; exit -1
+    else
+      request[:output_file_name] = ($1 || ARGV.shift)
+    end
   when "--test"
-    $no_test = false
-  when "--no-test"
-    $no_test = true
-  when /^--output=(\S+)/
-    $output_file_name = $1
-  when "--output", "-o"
-    $output_file_name = ARGV.shift
-  when /^--library=(\S+)/
-    $library_path << $1
-  when "--library", "-l"
-    $library_path << ARGV.shift
+    if $parsing_global_options
+      warn "asautotest: option ‘--test’ cannot be used globally"
+      print_usage ; exit -1
+    else
+      request[:test?] = true
+    end
+  when "--test-port(?:=(\S+))?"
+    value = ($1 || ARGV.shift).to_i
+    for request in requests
+      request[:test_port] = value
+    end
+  when /^--library(?:=(\S+))?$/, "-l"
+    value = ($1 || ARGV.shift)
+    for request in requests
+      request[:library_file_names] << value
+    end
+  when /^--source=(?:=(\S+))?$/, "-I"
+    value = ($1 || ARGV.shift)
+    for request in requests
+      request[:source_directories] << value
+    end
   when "--dynamic-typing"
     $typing = :dynamic
   when "--static-typing"
     $typing = :static
+  when "--verbose"
+    $verbose = true
+  when "--"
+    if request.include? :source_file_name
+      $compilation_requests << new_compilation_request
+    else
+      warn "asautotest: no source file found before ‘--’"
+      print_usage ; exit -1
+    end
+  when "---"
+    if $parsing_global_options
+      warn "asautotest: only one ‘---’ section allowed"
+      print_usage ; exit -1
+    else
+      $parsing_global_options = true
+    end
   when /^-/
     warn "asautotest: unrecognized argument: #{argument}"
     print_usage ; exit -1
   else
-    $normal_arguments << argument
+    if request.include? :source_file_name
+      warn "asautotest: use ‘--’ to separate multiple source files"
+      print_usage ; exit -1
+    else
+      request[:source_file_name] = argument
+    end
   end
-end
-
-if $normal_arguments.size == 0
-  print_usage ; exit -1
-elsif $normal_arguments.size == 1
-  $normal_arguments << "."
 end
 
 ASAutotest::Logging.verbose = $verbose
 ASAutotest::Main.run \
-  $normal_arguments[0],
-  $normal_arguments[1..-1],
-  :no_test? => $no_test,
-  :output_file_name => $output_file_name,
-  :library_path => $library_path,
+  :compilation_requests => $compilation_requests,
   :typing => $typing

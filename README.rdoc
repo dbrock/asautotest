@@ -1,6 +1,6 @@
-= asautotest
+= ASAutotest
 
-asautotest is an automatic compilation and testing tool ideally suited
+ASAutotest is an automatic compilation and testing tool ideally suited
 for non-IDE ActionScript development.
 
 It operates by watching your entire source directory, triggering a
@@ -14,11 +14,13 @@ is undocumented and a bit hard to set up (once set up, though, it
 works really well).  For a working example of the kind of glue you
 need, see <tt><test-project/src/specification.as></tt>.
 
+
 == Installation
 
-You can install asautotest by simply symlinking it into your PATH:
+You can install ASAutotest by simply symlinking the executable into
+your PATH:
 
-  $ cd ~/bin ; ln -s ~/asautotest/bin/asautotest.rb asautotest
+  $ ln -s ~/asautotest/bin/asautotest.rb ~/bin/asautotest
 
 To get started, you need fcsh, which is part of the Flex SDK.
 It should either be in your PATH, or you can set the <tt>FCSH</tt>
@@ -30,55 +32,146 @@ environment variable.)
 You can find the Flex SDK here:
 http://opensource.adobe.com/wiki/display/flexsdk
 
+
 == Usage
 
-Once you have both asautotest and fcsh in place, try this:
+Once you have both <tt>asautotest</tt> and <tt>fcsh</tt> in place, try
+this:
 
-  $ cd ~/my-project/src
-  $ asautotest main.as
+  $ asautotest ~/my-project/src/main.as
 
-This will compile <tt>main.as</tt> (using <tt>my-project/src</tt> as
-the source directory) and then go to sleep, waiting for changes.
+This will compile <tt>main.as</tt>, using <tt>~/my-project/src</tt> as
+the source directory, and then go to sleep, waiting for changes.
 As soon as some <tt>*.as</tt> or <tt>*.mxml</tt> file in
-<tt><my-project/src></tt> changes, it will wake up and perform
-a recompilation.
+<tt>~/my-project/src</tt> (or any subdirectory) changes, ASAutotest
+will wake up and perform a recompilation.
 
 By default, the resulting SWF is placed in a temporary directory and
 then thrown away.  If you want to use the SWF, you need to specify
-where it should be placed, using the <tt>--output</tt> option:
+where it should be placed, using the <tt>--output</tt> option (or
+<tt>-o</tt> for short):
 
-  $ asautotest main.as --output=../bin/my-project.swf
+  $ cd ~/my-project
+  $ asautotest src/main.as -o bin/my-project.swf
 
-If you have multiple source directores, you need to list them all on
-the command line:
+If you have additional source directores, use the <tt>--source</tt>
+option (or <tt>-I</tt> for short) to add them:
 
-  $ cd ~/my-project/src
-  $ asautotest main.as . ~/my-other-project/src
+  $ asautotest ~/my-project/src/main.as -I ~/my-other-project/src
 
-Note the <tt>.</tt>, specifying the current directory.  Equivalently,
+To link with SWC files, use the <tt>--library</tt> option (or
+<tt>-l</tt> for short):
 
-  $ cd ~
-  $ asautotest my-project/src/main.as my-project/src my-other-project/src
+  $ asautotest main.as -l ../lib/some-library.swc
 
-To link with SWC files, use the <tt>--library</tt> option:
 
-  $ asautotest main.as --library=../lib/some-library.swc
+=== Autotesting
+
+You can tell ASAutotest to run your SWF as a test using the
+<tt>--test</tt> option (or <tt>-t</tt> for short):
+
+  $ asautotest spec.as --test
+
+For this to work, your test must follow a rather complicated protocol
+involving connecting to a socket and sending the test results in a
+specific (non-standard) format.  ASAutotest comes with adapter code
+for ASSpec, so if your tests are written using ASSpec, then getting up
+and running with autotesting should be easy.  
+
+Your <tt>foo_spec.as</tt> should look like this:
+
+  package
+  {
+    import asautotest.ASSpecRunner
+  
+    public class foo_spec extends ASSpecRunner
+    {
+      public function foo_spec()
+      { super(new FooSuite) }
+    }
+  }
+
+Then you need to add <tt>asautotest/assspec/src</tt> as a source
+directory:
+
+  $ asautotest foo_spec.as --test -l asspec.swc -I ~/asautotest/asspec/src
+
+Because the test communicates with ASAutotest through a socket, you
+also need to run a Flash cross-domain policy server on port 843 (which
+unfortunately requires root privileges); otherwise, the test will not
+be able to connect to ASAutotest:
+
+  $ sudo ~/asautotest/bin/policy-server.rb
+
+This will just keep running, so you may want to start it in a screen:
+
+  $ screen sudo ~/asautotest/bin/policy-server.rb
+
+You should be all set for autotesting now.  Try it out by changing
+something in your code and watching the tests run automatically.
+Note that the tests are only executed if all compilations succeed.
+
+
+==== Advanced autotesting
+
+By default, ASAutotest expects the test to connect to port 50102.
+If for some reason you need to use a different port (maybe you have
+multiple ASAutotest instances running at the same time), you can use
+the <tt>--test-port</tt> option to specify it:
+
+  $ asautotest foo_spec.as --test --test-port 54321
+
+To change the port that the ASSpec adapter connects to, do this:
+
+      public function foo_spec()
+      { super(new FooSuite, 54321) }
+
+If you need to write your own adapter to another testing framework,
+you can use <tt>ASSpecRunner.as</tt> as a starting point.
+
+
+=== Multi-compilation
+
+If you need to compile multiple SWFs (for example, one production SWF
+and one test), use <tt>--</tt> (double hyphen) to divide the command
+line into sections:
+
+  $ asautotest foo.as -o foo.swf -- foo_spec.as --test
+
+This works with any number of source files:
+
+  $ asautotest foo.as -- bar.as -- baz.as -- quux.as
+
+Options specified in such a section only apply to that source file.
+In the following example, only <tt>bar.as</tt> is linked with
+<tt>asspec.swc</tt> and compiled to <tt>bar.swf</tt>; the other two
+files are just compiled to check for errors.
+
+  $ asautotest foo.as -- bar.as -o bar.swf -l asspec.swc -- baz.as
+
+You can use <tt>---</tt> (triple hyphen) to specify global options:
+
+  $ asautotest foo.as -o foo.swf -- foo_spec.as --test --- -l asspec.swc
+
+In the above example, both <tt>foo.as</tt> and <tt>foo_spec.as</tt>
+would be linked with <tt>asspec.swc</tt>.
+
 
 == License
 
 Copyright (C) 2010  Go Interactive <http://gointeractive.se>
 
-This file is part of asautotest.
+This file is part of ASAutotest.
 
-asautotest is free software: you can redistribute it and/or modify
+ASAutotest is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-asautotest is distributed in the hope that it will be useful,
+ASAutotest is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with asautotest.  If not, see <http://www.gnu.org/licenses/>.
+along with ASAutotest.  If not, see <http://www.gnu.org/licenses/>.
