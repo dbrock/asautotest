@@ -48,7 +48,7 @@ module ASAutotest
     rescue TestMisbehaving
       shout "Terminating misbehaving test."
     rescue TestMisbehavingFatally
-      exit -1
+      exit
     end
 
     def run_test

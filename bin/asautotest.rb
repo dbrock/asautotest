@@ -22,7 +22,14 @@ require "pathname"
 require "rubygems"
 require "tmpdir"
 
-$: << File.join(File.dirname(Pathname.new(__FILE__).realpath), "..", "lib")
+module ASAutotest
+  current_directory = File.dirname(Pathname.new(__FILE__).realpath)
+  ROOT = File.expand_path(File.join(current_directory, ".."))
+end
+
+$: << File.join(ASAutotest::ROOT, "lib")
+
+ENV["ASAUTOTEST_ROOT"] = ASAutotest::ROOT
 
 require "asautotest/compilation-output-parser"
 require "asautotest/compilation-result"
@@ -161,7 +168,7 @@ module ASAutotest
           say "  Not running as test (use --test to enable)."
         elsif not request.temporary_output?
           say_tabbed "  Output file:",
-            format_file_name(request.output_file_name)
+            "=> #{format_file_name(request.output_file_name)}"
         elsif request.test?
           say "  Running as test (using port #{request.test_port})."
         end
@@ -306,6 +313,11 @@ until ARGV.empty?
     for request in requests
       request[:source_directories] << value
     end
+  when /^--asspec-adapter-source$/
+    value = File.join(ASAutotest::ROOT, "asspec", "src")
+    for request in requests
+      request[:source_directories] << value
+    end
   when "--dynamic-typing"
     $typing = :dynamic
   when "--static-typing"
@@ -340,6 +352,10 @@ until ARGV.empty?
 end
 
 ASAutotest::Logging.verbose = $verbose
-ASAutotest::Main.run \
-  :compilation_requests => $compilation_requests,
-  :typing => $typing
+
+begin
+  ASAutotest::Main.run \
+    :compilation_requests => $compilation_requests,
+    :typing => $typing
+rescue Interrupt
+end
