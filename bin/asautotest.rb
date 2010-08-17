@@ -107,22 +107,25 @@ module ASAutotest
     include Logging
 
     def initialize(options)
-      @compilation_requests = options[:compilation_requests].map do |options|
-        options[:source_file_name] =
-          File.expand_path(options[:source_file_name])
-        implicit_source_directory =
-          File.dirname(File.expand_path(options[:source_file_name])) + "/"
-        options[:source_directories] = options[:source_directories].
-          map { |directory_name| File.expand_path(directory_name) + "/" }
-        options[:source_directories] << implicit_source_directory unless
-          options[:source_directories].include? implicit_source_directory
-        options[:library_file_names] = options[:library_file_names].
-          map { |file_name| File.expand_path(file_name) }
-
-        CompilationRequest.new(options)
-      end
-
       @typing = options[:typing]
+
+      @compilation_requests = options[:compilation_requests].
+        map(&method(:make_compilation_request))
+    end
+
+    def make_compilation_request(options)
+      options[:source_file_name] =
+        File.expand_path(options[:source_file_name])
+      implicit_source_directory =
+        File.dirname(File.expand_path(options[:source_file_name])) + "/"
+      options[:source_directories] = options[:source_directories].
+        map { |directory_name| File.expand_path(directory_name) + "/" }
+      options[:source_directories] << implicit_source_directory unless
+        options[:source_directories].include? implicit_source_directory
+      options[:library_file_names] = options[:library_file_names].
+        map { |file_name| File.expand_path(file_name) }
+
+      CompilationRequest.new(options)
     end
 
     def self.run(*arguments)
