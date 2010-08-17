@@ -118,7 +118,7 @@ module ASAutotest
     # ------------------------------------------------------
   
     def new_logging_section
-      say("-" * 60)
+      say("—" * 60)
     end
   end
 end
