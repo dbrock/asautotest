@@ -152,7 +152,7 @@ module ASAutotest
       new_logging_section
 
       for request in @compilation_requests
-        say File.basename(request.source_file_name)
+        say "\e[1m#{File.basename(request.source_file_name)}\e[0m"
         
         for source_directory in request.source_directories
           say_tabbed "  Source directory:",
