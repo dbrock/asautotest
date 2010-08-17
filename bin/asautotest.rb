@@ -211,7 +211,10 @@ module ASAutotest
         end
 
         catch :asautotest_interrupt do
-          monitor.run
+          begin
+            monitor.run
+          rescue
+          end
         end
       end
     end
