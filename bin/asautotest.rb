@@ -46,9 +46,11 @@ module ASAutotest
   FLASHPLAYER = ENV["FLASHPLAYER"] || "flashplayer"
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
   DEFAULT_TEST_PORT = 50102
+  GROWL_ERROR_TOKEN = "ASAutotest-#{ARGV.inspect.hash}"
 
   class << self
     attr_accessor :growl_enabled
+    attr_accessor :displaying_growl_error
   end
 
   class CompilationRequest
@@ -408,3 +410,5 @@ begin
     :enable_growl? => $enable_growl
 rescue Interrupt
 end
+
+exit 200

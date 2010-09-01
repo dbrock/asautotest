@@ -55,8 +55,10 @@ module ASAutotest
     end
 
     def run_compilation(request, result)
+      stopwatch = Stopwatch.new
       @process.puts(request.compile_command)
-      OutputParser.parse(read_until_prompt, request, result)
+      OutputParser.parse(read_until_prompt, request, stopwatch, result)
+      stopwatch.stop
     end
 
     def read_until_prompt

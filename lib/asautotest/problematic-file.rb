@@ -101,6 +101,7 @@ module ASAutotest
   class Location
     extend Bracketable
     attr_reader :line_number, :column_number, :source_line
+
     def initialize(line_number, column_number, source_line)
       @line_number = line_number
       @column_number = column_number
@@ -248,6 +249,15 @@ module ASAutotest
       end
     end
 
+    def detail ; nil end
+    def plain_message
+      if detail
+        "#{message} #{detail}"
+      else
+        message.sub(/:$/, ".")
+      end
+    end
+
     class ConstantAssignment < Problem
       def message ; "Attempt to modify constant:" end
       def details ; identifier_source_line_details end
@@ -261,27 +271,29 @@ module ASAutotest
     class UndefinedImport < Problem
       def initialize(type) @type = type end
       def message ; "Import not found:" end
-      def details
-        bullet_details(@type.full_name)
-      end
+      def details ; bullet_details(detail) end
+      def detail ; @type.full_name end
     end
 
     class UndefinedMethod < Problem
       def initialize(member) @member = member end
       def message ; "Undefined method:" end
       def details ; identifier_source_line_details end
+      def detail ; @member end
     end
 
     class UndefinedProperty < Problem
       def initialize(member) @member = member end
       def message ; "Undefined property:" end
       def details ; identifier_source_line_details end
+      def detail ; @member end
     end
 
     class InaccessibleProperty < Problem
       def initialize(member) @member = member end
       def message ; "Property access not allowed:" end
       def details ; identifier_source_line_details end
+      def detail ; @member end
     end
 
     class WrongPackage < Problem
@@ -298,6 +310,7 @@ module ASAutotest
       def initialize(type) @type = type end
       def message ; "Undefined type:" end
       def details ; identifier_source_line_details end
+      def detail ; @type.full_name end
       def extra_details
         if problematic_identifier == "Sprite"
           "Hint: It’s flash.display.Sprite."
@@ -326,6 +339,7 @@ module ASAutotest
     class MissingReturnType < Problem
       def initialize(member) @member = member end
       def message ; "Missing return type:"  end
+      def detail ; @member end
       def details ; member_details end
       def type_warning? ; true end
     end
@@ -339,6 +353,7 @@ module ASAutotest
     class InterfaceNotFound < Problem
       def initialize(member) @member = member end
       def message ; "Interface not found:"  end
+      def detail ; @member end
       def details ; member_details end
     end
 
@@ -376,6 +391,8 @@ module ASAutotest
           "#{core_message} in #@implementing_type:"
         end
       end
+
+      def detail ; @member end
 
       def details
         "\e[0m  * \e[1m#{@member.name}\e[0m (#{@member.type})\e[0m"

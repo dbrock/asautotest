@@ -46,43 +46,62 @@ module ASAutotest
 
         if @result.failed?
           status << "failed"
-          growl_error "Compilation failed\n" +
-            "#{@result.n_problems} problems " +
-            "in #{@result.n_problematic_files} files"
-        elsif @result.bootstrap?
-          status << "recompiled everything in #{compilation_time}"
-          growl "Compilation successful\n#{status.capitalize}."
         elsif @result.did_anything?
-          status << "recompiled #{@result.n_recompiled_files} "
-          status << "file#{@result.n_recompiled_files == 1 ? "" : "s"} "
-          status << "in #{compilation_time}"
-          growl "Compilation successful\n#{status.capitalize}."
+          files = if @result.bootstrap?
+                    "everything"
+                  else
+                    n_x(@result.n_recompiled_files, "file")
+                  end
+          status << "recompiled #{files} in #{compilation_time}"
         else
           status << "nothing changed"
+        end
+
+        if @result.successful?
+          for summary in @result.summaries
+            title = File.basename(summary[:request].source_file_name)
+            if summary[:successful?] and summary[:n_recompiled_files] != 0
+              files = if summary[:n_recompiled_files]
+                        n_x(summary[:n_recompiled_files], "file")
+                      else
+                        "everything"
+                      end
+              time = "#{summary[:compilation_time].to_s(1)}s"
+              growl_success title, "Compiled #{files} in #{time}."
+            end
+          end
+        else
+          summary = @result.summaries.find { |x| not x[:successful?] }
+          file_name = summary[:first_problem].file.basename
+          line_number = summary[:first_problem].line_number
+          message = summary[:first_problem].plain_message
+          growl_error "#{file_name}, line #{line_number}", message
         end
       end
     end
 
-    def growl(message)
+    def n_x(n, x)
+      "#{n} #{x}#{n == 1 ? "" : "s"}"
+    end
+
+    def growl_success(title, message)
       if ASAutotest::growl_enabled
-        Growl.notify(message, growl_options)
+        options = { :title => title, :icon => "as" }
+        if ASAutotest::displaying_growl_error
+          options[:identifier] = GROWL_ERROR_TOKEN
+          ASAutotest::displaying_growl_error = false
+        end
+        Growl.notify(message, options)
       end
     end
 
-    def growl_error(message)
+    def growl_error(title, message)
       if ASAutotest::growl_enabled
-        Growl.notify_error(message, growl_options)
+        Growl.notify_error message,
+          :title => title, :sticky => true,
+          :identifier => GROWL_ERROR_TOKEN
+        ASAutotest::displaying_growl_error = true
       end
-    end
-
-    def growl_options
-      { :title => growl_title, :icon => "as" }
-    end
-
-    def growl_title
-      @shell.compilation_requests.map do |request|
-        File.basename(request.source_file_name)
-      end.join(", ")
     end
 
     def compilation_time

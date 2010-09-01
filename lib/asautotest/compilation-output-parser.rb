@@ -19,10 +19,14 @@
 
 module ASAutotest
   class OutputParser
-    def initialize(output, request, result)
+    def initialize(output, request, stopwatch, result)
       @output = output
       @request = request
+      @stopwatch = stopwatch
       @result = result
+
+      @problematic_file_names = Set.new
+      @n_problems = 0
     end
 
     def self.parse(*arguments)
@@ -68,21 +72,32 @@ module ASAutotest
         location = Location[line_number, column_number, source_line]
         problem = Problem[message, location]
 
-        @result.add_problem(file_name, problem)
+        add_problem(file_name, problem)
       when /^Error: (.*)/
-        @result.add_problem(nil, Problem[$1, nil])
+        add_problem(nil, Problem[$1, nil])
       when /^(.*?): (.*)/
-        @result.add_problem($1, Problem[$2, nil])
+        add_problem($1, Problem[$2, nil])
       else
         @result.add_unrecognized_line(line)
       end
+    end
+
+    def add_problem(file_name, problem)
+      @first_problem ||= problem
+      @problematic_file_names << file_name
+      @n_problems += 1
+      @result.add_problem(file_name, problem)
     end
 
     def add_summary
       @result.add_summary \
         :request => @request,
         :successful? => @successful,
-        :n_recompiled_files => @n_recompiled_files
+        :n_recompiled_files => @n_recompiled_files,
+        :n_problematic_files => @problematic_file_names.size,
+        :n_problems => @n_problems,
+        :first_problem => @first_problem,
+        :compilation_time => @stopwatch
     end
 
     def has_more_lines?
