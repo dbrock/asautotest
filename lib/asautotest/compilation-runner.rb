@@ -46,16 +46,43 @@ module ASAutotest
 
         if @result.failed?
           status << "failed"
+          growl_error "Compilation failed\n" +
+            "#{@result.n_problems} problems " +
+            "in #{@result.n_problematic_files} files"
         elsif @result.bootstrap?
           status << "recompiled everything in #{compilation_time}"
+          growl "Compilation successful\n#{status.capitalize}."
         elsif @result.did_anything?
           status << "recompiled #{@result.n_recompiled_files} "
           status << "file#{@result.n_recompiled_files == 1 ? "" : "s"} "
           status << "in #{compilation_time}"
+          growl "Compilation successful\n#{status.capitalize}."
         else
           status << "nothing changed"
         end
       end
+    end
+
+    def growl(message)
+      if ASAutotest::growl_enabled
+        Growl.notify(message, growl_options)
+      end
+    end
+
+    def growl_error(message)
+      if ASAutotest::growl_enabled
+        Growl.notify_error(message, growl_options)
+      end
+    end
+
+    def growl_options
+      { :title => growl_title, :icon => "as" }
+    end
+
+    def growl_title
+      @shell.compilation_requests.map do |request|
+        File.basename(request.source_file_name)
+      end.join(", ")
     end
 
     def compilation_time

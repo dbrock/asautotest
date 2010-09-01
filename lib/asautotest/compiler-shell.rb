@@ -25,6 +25,8 @@ module ASAutotest
 
     include Logging
 
+    attr_reader :compilation_requests
+
     def initialize(options)
       @compilation_requests = options[:compilation_requests]
     end

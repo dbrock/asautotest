@@ -33,6 +33,10 @@ module ASAutotest
       @problems = @problems.sort_by { |x| x.sort_key }
     end
 
+    def n_problems
+      @problems.size
+    end
+
     def type
       Type[dirname.gsub(/\/|\\/, "."), basename.sub(/\..*$/, "")]
     end

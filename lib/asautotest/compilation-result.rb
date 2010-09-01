@@ -71,6 +71,14 @@ module ASAutotest
       @summaries.all? { |x| x[:successful?] }
     end
 
+    def n_problematic_files
+      @problematic_files.values.size
+    end
+
+    def n_problems
+      @problematic_files.values.inject(0) { |a, x| a + x.n_problems }
+    end
+
     def failed?
       not successful?
     end

@@ -47,6 +47,10 @@ module ASAutotest
   WATCH_GLOB = "**/[^.]*.{as,mxml}"
   DEFAULT_TEST_PORT = 50102
 
+  class << self
+    attr_accessor :growl_enabled
+  end
+
   class CompilationRequest
     attr_reader :source_file_name
     attr_reader :source_directories
@@ -109,10 +113,25 @@ module ASAutotest
     include Logging
 
     def initialize(options)
+      initialize_growl if options[:enable_growl?]
       @typing = options[:typing]
-
       @compilation_requests = options[:compilation_requests].
         map(&method(:make_compilation_request))
+    end
+
+    def initialize_growl
+      begin
+        require "growl"
+        if Growl.installed?
+          ASAutotest::growl_enabled = true
+        else
+          shout "You need to install the ‘growlnotify’ tool."
+          say "Alternatively, use --no-growl to disable Growl notifications."
+          exit -1
+        end
+      rescue LoadError
+        hint "Hint: Install the ‘growl’ gem to enable Growl notifications."
+      end
     end
 
     def make_compilation_request(options)
@@ -239,7 +258,7 @@ module ASAutotest
 
       for summary in @compilation.result.summaries
         if summary[:successful?]
-          if @compilation.result.successful? and summary[:request].test?
+          if compilation_successful? and summary[:request].test?
             run_test(summary[:request])
           end
 
@@ -250,6 +269,18 @@ module ASAutotest
       end
 
       whisper "Ready."
+    end
+
+    def compilation_successful?
+      @compilation.result.successful?
+    end
+
+    def n_problems
+      @compilation.result.n_problems
+    end
+
+    def n_problematic_files
+      @compilation.result.n_problematic_files
     end
 
     def compile
@@ -286,6 +317,7 @@ end
 $compilation_requests = [new_compilation_request]
 $typing = nil
 $verbose = false
+$enable_growl = RUBY_PLATFORM =~ /darwin/
 $parsing_global_options = false
 
 until ARGV.empty?
@@ -333,6 +365,8 @@ until ARGV.empty?
     $typing = :static
   when "--verbose"
     $verbose = true
+  when "--no-growl"
+    $enable_growl = false
   when "--"
     if request.include? :source_file_name
       $compilation_requests << new_compilation_request
@@ -370,6 +404,7 @@ ASAutotest::Logging.verbose = $verbose
 begin
   ASAutotest::Main.run \
     :compilation_requests => $compilation_requests,
-    :typing => $typing
+    :typing => $typing,
+    :enable_growl? => $enable_growl
 rescue Interrupt
 end
