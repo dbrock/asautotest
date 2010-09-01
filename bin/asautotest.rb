@@ -18,8 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with ASAutotest.  If not, see <http://www.gnu.org/licenses/>.
 
-require "pathname"
 require "rubygems"
+require "pathname"
 require "tmpdir"
 
 module ASAutotest
@@ -274,8 +274,9 @@ module ASAutotest
 end
 
 def print_usage
-  warn "usage: asautotest [-I SRCDIR|-l FILE.swc]... FILE.as [--test|-o FILE.swf]"
-  warn "       asautotest [OPTIONS...] FILE.as [OPTION] [-- FILE.as [OPTION]]..."
+  warn "\
+usage: asautotest FILE.as [--test|-o FILE.swf] [-I SRCDIR|-l FILE.swc]...
+       asautotest FILE.as [OPTION] [-- FILE.as [OPTION]]... [--- OPTIONS...]"
 end
 
 def new_compilation_request
@@ -357,6 +358,11 @@ until ARGV.empty?
       request[:source_file_name] = argument
     end
   end
+end
+
+unless $compilation_requests.first[:source_file_name]
+  warn "asautotest: please specify a source file to be compiled"
+  print_usage ; exit -1
 end
 
 ASAutotest::Logging.verbose = $verbose
