@@ -94,6 +94,8 @@ module ASAutotest
           end
           result << %{ -output=#@output_file_name}
           result << %{ -static-link-runtime-shared-libraries}
+          result << %{ -compiler.strict}
+          result << %{ -debug}
           result << %{ #@source_file_name}
         end
       end
