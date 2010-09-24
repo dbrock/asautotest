@@ -1,0 +1,1 @@
+Type mismatch errors should not send terminal escape codes to Growl.
