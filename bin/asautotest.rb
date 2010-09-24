@@ -411,4 +411,5 @@ begin
 rescue Interrupt
 end
 
+# Signal successful exit.
 exit 200

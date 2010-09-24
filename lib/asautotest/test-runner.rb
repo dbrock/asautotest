@@ -48,7 +48,7 @@ module ASAutotest
     rescue TestMisbehaving
       shout "Terminating misbehaving test."
     rescue TestMisbehavingFatally
-      exit
+      exit -1
     end
 
     def run_test
@@ -146,7 +146,7 @@ module ASAutotest
         misbehavior! "Test closed connection without sending anything."
       when POLICY_FILE_REQUEST
         fatal_misbehavior! \
-          "Recieved cross-domain policy file request; aborting.",
+          "Received cross-domain policy file request; aborting.",
           "Please run a policy server on port 843 (root usually needed).",
           "See ‘bin/policy-server.rb’ in the ASAutotest distribution."
       else
