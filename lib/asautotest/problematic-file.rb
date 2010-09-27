@@ -179,11 +179,11 @@ module ASAutotest
     end
 
     def line_number
-      location.line_number
+      location.line_number rescue "?"
     end
 
     def column_number
-      location.column_number - indentation_width
+      location.column_number - indentation_width rescue "?"
     end
 
     def indentation_width
