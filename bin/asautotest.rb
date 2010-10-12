@@ -60,6 +60,7 @@ module ASAutotest
     attr_reader :test_port
     attr_reader :output_file_name
 
+    def production? ; @production end
     def test? ; @test end
     def temporary_output? ; @temporary_output end
 
@@ -67,6 +68,7 @@ module ASAutotest
       @source_file_name = options[:source_file_name]
       @source_directories = options[:source_directories]
       @library_file_names = options[:library_file_names]
+      @production = options[:production?]
       @test = options[:test?]
       @test_port = options[:test_port] || DEFAULT_TEST_PORT
 
@@ -101,7 +103,7 @@ module ASAutotest
           result << %{ -output=#@output_file_name}
           result << %{ -static-link-runtime-shared-libraries}
           result << %{ -compiler.strict}
-          result << %{ -debug}
+          result << %{ -debug} unless @production
           result << %{ #@source_file_name}
         end
       end
@@ -198,6 +200,8 @@ module ASAutotest
         elsif request.test?
           say "  Running as test (using port #{request.test_port})."
         end
+
+        say "  Compiling in production mode." if request.production?
       end
 
       say "Running in verbose mode." if Logging.verbose?
@@ -333,6 +337,10 @@ until ARGV.empty?
       print_usage ; exit -1
     else
       request[:output_file_name] = ($1 || ARGV.shift)
+    end
+  when "--production"
+    for request in requests
+      request[:production?] = true
     end
   when "--test"
     if $parsing_global_options
