@@ -35,9 +35,16 @@ module ASAutotest
 
     def run
       @stopwatch = Stopwatch.new
+      whisper_commands
       compile
       @stopwatch.stop
       print_report
+    end
+
+    def whisper_commands
+      for command in @shell.compilation_commands
+        whisper "$ #{command}"
+      end
     end
 
     def compile

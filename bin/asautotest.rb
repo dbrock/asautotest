@@ -88,7 +88,7 @@ module ASAutotest
       "#{(Time.new.to_f * 1000).to_i}-#{(rand * 1_000_000).to_i}"
     end
 
-    def compile_command
+    def compilation_command
       if @compile_id
         %{compile #@compile_id}
       else
