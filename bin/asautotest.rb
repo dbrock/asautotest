@@ -59,6 +59,7 @@ module ASAutotest
     attr_reader :library_file_names
     attr_reader :test_port
     attr_reader :output_file_name
+    attr_reader :extra_mxmlc_options
 
     def production? ; @production end
     def test? ; @test end
@@ -71,6 +72,7 @@ module ASAutotest
       @production = options[:production?]
       @test = options[:test?]
       @test_port = options[:test_port] || DEFAULT_TEST_PORT
+      @extra_mxmlc_options = options[:extra_mxmlc_options] || []
 
       if options.include? :output_file_name
         @output_file_name = File.expand_path(options[:output_file_name])
@@ -104,6 +106,9 @@ module ASAutotest
           result << %{ -static-link-runtime-shared-libraries}
           result << %{ -compiler.strict}
           result << %{ -debug} unless @production
+          for option in @extra_mxmlc_options
+            result << %{ #{option}}
+          end
           result << %{ #@source_file_name}
         end
       end
@@ -190,6 +195,10 @@ module ASAutotest
         for library in request.library_file_names
           say_tabbed "  Library:", format_file_name(library)
         end
+
+        unless request.extra_mxmlc_options.empty?
+          say_tabbed "  Extra options:", request.extra_mxmlc_options * " "
+        end          
 
         if request.temporary_output? and not request.test?
           say "  Not saving output SWF (use --output=FILE.swf to specify)."
@@ -317,7 +326,7 @@ usage: asautotest FILE.as [--test|-o FILE.swf] [-I SRCDIR|-l FILE.swc]...
 end
 
 def new_compilation_request
-  { :source_directories => [], :library_file_names => [] }
+  { :source_directories => [], :library_file_names => [], :extra_mxmlc_options => [] }
 end
 
 $compilation_requests = [new_compilation_request]
@@ -377,6 +386,11 @@ until ARGV.empty?
     $verbose = true
   when "--no-growl"
     $enable_growl = false
+  when /^--mxmlc-option(?:=(.*))?$/, "-X"
+    value = ($1 || ARGV.shift)
+    for request in requests
+      request[:extra_mxmlc_options] << value
+    end
   when "--"
     if request.include? :source_file_name
       $compilation_requests << new_compilation_request
