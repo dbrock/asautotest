@@ -96,20 +96,20 @@ module ASAutotest
       else
         build_string do |result|
           result << %{mxmlc}
-          for source_directory in @source_directories do
-            result << %{ -compiler.source-path=#{source_directory}}
+          for source_directory in source_directories do
+            result << %{ -compiler.source-path+=#{source_directory}}
           end
-          for library in @library_file_names do
-            result << %{ -compiler.library-path=#{library}}
+          for library in library_file_names do
+            result << %{ -compiler.library-path+=#{library}}
           end
-          result << %{ -output=#@output_file_name}
+          result << %{ -output=#{output_file_name}}
           result << %{ -static-link-runtime-shared-libraries}
           result << %{ -compiler.strict}
-          result << %{ -debug} unless @production
+          result << %{ -debug} unless production?
           for option in @extra_mxmlc_options
             result << %{ #{option}}
           end
-          result << %{ #@source_file_name}
+          result << %{ #{source_file_name}}
         end
       end
     end
