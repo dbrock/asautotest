@@ -164,7 +164,7 @@ would be linked with <tt>asspec.swc</tt>.
 
 == License
 
-Copyright (C) 2010  Go Interactive <http://gointeractive.se>
+Copyright (C) 2010, 2011  Go Interactive <http://gointeractive.se/>
 
 This file is part of ASAutotest.
 
