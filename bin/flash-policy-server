@@ -21,7 +21,9 @@
 require "socket"
 require "timeout"
 
-class PolicyServer
+PROGRAM_NAME = File.basename($0)
+
+class FlashPolicyServer
   PORT = 843
 
   def initialize
@@ -44,7 +46,7 @@ class PolicyServer
   end
 
   def info_string(message)
-    "policy-server: #{message}"
+    "#{PROGRAM_NAME}: #{message}"
   end
 
   def begin_info(message)
@@ -85,4 +87,4 @@ class PolicyServer
   end
 end
 
-PolicyServer.new.run
+FlashPolicyServer.new.run
