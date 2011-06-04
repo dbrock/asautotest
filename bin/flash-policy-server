@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
-# policy-server.rb --- simple Flash security policy file server
+# flash-policy-server --- simple Flash security policy file server
 # Copyright (C) 2010  Go Interactive
 
 # This file is part of ASAutotest.

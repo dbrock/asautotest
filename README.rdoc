@@ -17,10 +17,15 @@ need, see <tt><test-project/src/specification.as></tt>.
 
 == Installation
 
-You can install ASAutotest by simply symlinking the executable into
-your PATH:
+The easiest way to install ASAutotest is via Rubygems:
 
-  $ ln -s ~/asautotest/bin/asautotest.rb ~/bin/asautotest
+  $ sudo gem install asautotest
+
+You can also install ASAutotest by simply symlinking the executables
+into your PATH:
+
+  $ ln -s ~/asautotest/bin/asautotest ~/bin
+  $ ln -s ~/asautotest/bin/flash-policy-server ~/bin
 
 To get started, you need fcsh, which is part of the Flex SDK.
 It should either be in your PATH, or you can set the <tt>FCSH</tt>
@@ -101,11 +106,11 @@ also need to run a Flash cross-domain policy server on port 843 (which
 unfortunately requires root privileges); otherwise, the test will not
 be able to connect to ASAutotest:
 
-  $ sudo ~/asautotest/bin/policy-server.rb
+  $ sudo flash-policy-server
 
 This will just keep running, so you may want to start it in a screen:
 
-  $ screen sudo ~/asautotest/bin/policy-server.rb
+  $ screen sudo flash-policy-server
 
 You should be all set for autotesting now.  Try it out by changing
 something in your code and watching the tests run automatically.
