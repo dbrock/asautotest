@@ -511,7 +511,7 @@ module ASAutotest
     end
 
     def identifier_source_line_parts
-      source_line =~ /^(.{#{column_number}})([\w$]+)(.*)$/
+      source_line =~ /^(.{#{column_number.to_i}})([\w$]+)(.*)$/
       [$1, $2, $3]
     end
 
