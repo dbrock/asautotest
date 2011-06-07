@@ -60,6 +60,7 @@ module ASAutotest
     attr_reader :test_port
     attr_reader :output_file_name
     attr_reader :extra_mxmlc_options
+    attr_reader :demo_command
 
     def production? ; @production end
     def test? ; @test end
@@ -73,6 +74,7 @@ module ASAutotest
       @test = options[:test?]
       @test_port = options[:test_port] || DEFAULT_TEST_PORT
       @extra_mxmlc_options = options[:extra_mxmlc_options] || []
+      @demo_command = options[:demo_command]
 
       if options.include? :output_file_name
         @output_file_name = File.expand_path(options[:output_file_name])
@@ -116,6 +118,23 @@ module ASAutotest
 
     attr_accessor :compile_id
     attr_accessor :index
+
+    def run_test!
+      TestRunner.new(output_file_name, test_port).run if test?
+    end
+
+    def stop_demo!
+      if @demo_command and @demo_process
+        Process.kill "TERM", @demo_process.pid
+        @demo_process = nil
+      end
+    end
+
+    def start_demo!
+      if @demo_command
+        @demo_process = IO.popen(@demo_command)
+      end
+    end
   end
 
   class Main
@@ -210,6 +229,10 @@ module ASAutotest
           say "  Running as test (using port #{request.test_port})."
         end
 
+        if request.demo_command
+          say_tabbed "  Demo command:", request.demo_command
+        end
+
         say "  Compiling in production mode." if request.production?
       end
 
@@ -272,9 +295,12 @@ module ASAutotest
       compile
 
       for summary in @compilation.result.summaries
+        summary[:request].stop_demo!
+
         if summary[:successful?]
-          if compilation_successful? and summary[:request].test?
-            run_test(summary[:request])
+          if compilation_successful?
+            summary[:request].run_test!
+            summary[:request].start_demo!
           end
 
           if summary[:request].temporary_output?
@@ -302,10 +328,6 @@ module ASAutotest
       @compilation = CompilationRunner.new \
         @compiler_shell, :typing => @typing
       @compilation.run
-    end
-
-    def run_test(request)
-      TestRunner.new(request.output_file_name, request.test_port).run
     end
 
     def delete_output_file(file_name)
@@ -386,6 +408,8 @@ until ARGV.empty?
     $verbose = true
   when "--no-growl"
     $enable_growl = false
+  when /^--demo-command(?:=(.*))$/
+    request[:demo_command] = $1 || ARGV.shift
   when /^--mxmlc-option(?:=(.*))?$/, "-X"
     value = ($1 || ARGV.shift)
     for request in requests
@@ -431,6 +455,9 @@ begin
     :typing => $typing,
     :enable_growl? => $enable_growl
 rescue Interrupt
+  for request in $compilation_requests
+    request.stop_demo!
+  end
 end
 
 # Signal successful exit.
