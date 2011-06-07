@@ -1,6 +1,6 @@
 Gem::Specification.new do |gem|
   gem.name = "asautotest"
-  gem.version = "0.0.3"
+  gem.version = "0.0.4"
 
   gem.summary = "Detects source changes and compiles ActionScript."
   gem.homepage = "http://github.com/dbrock/asautotest"
