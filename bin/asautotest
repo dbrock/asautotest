@@ -44,7 +44,6 @@ require "asautotest/utilities"
 module ASAutotest
   FCSH = ENV["FCSH"] || "fcsh"
   FLASHPLAYER = ENV["FLASHPLAYER"] || "flashplayer"
-  WATCH_GLOB = "**/[^.]*.{as,mxml}"
   DEFAULT_TEST_PORT = 50102
   GROWL_ERROR_TOKEN = "ASAutotest-#{ARGV.inspect.hash}"
 
@@ -140,9 +139,12 @@ module ASAutotest
   class Main
     include Logging
 
+    attr_reader :compilation_requests
+
     def initialize(options)
       initialize_growl if options[:enable_growl?]
       @typing = options[:typing]
+      @watch_globs = options[:watch_globs]
       @compilation_requests = options[:compilation_requests].
         map(&method(:make_compilation_request))
     end
@@ -177,10 +179,6 @@ module ASAutotest
       CompilationRequest.new(options)
     end
 
-    def self.run(*arguments)
-      new(*arguments).run
-    end
-
     def run
       print_header
       start_compiler_shell
@@ -210,7 +208,7 @@ module ASAutotest
           say_tabbed "  Source directory:",
             format_file_name(source_directory)
         end
-        
+
         for library in request.library_file_names
           say_tabbed "  Library:", format_file_name(library)
         end
@@ -230,7 +228,7 @@ module ASAutotest
         end
 
         if request.demo_command
-          say_tabbed "  Demo command:", request.demo_command
+          say_tabbed "  Demo command:", "$ #{request.demo_command}"
         end
 
         say "  Compiling in production mode." if request.production?
@@ -241,6 +239,8 @@ module ASAutotest
       if @typing == :dynamic
         say "Not warning about missing type declarations."
       end
+
+      say "Monitoring #{@watch_globs * " "} for changes."
 
       new_logging_section
     end
@@ -265,7 +265,7 @@ module ASAutotest
         monitor = FSSM::Monitor.new
 
         for source_directory in source_directories
-          monitor.path(source_directory, WATCH_GLOB) do |watch|
+          monitor.path(source_directory, watch_glob) do |watch|
             watch.update { handle_change }
             watch.create { handle_change ; throw :asautotest_interrupt }
             watch.delete { handle_change ; throw :asautotest_interrupt }
@@ -278,6 +278,14 @@ module ASAutotest
           rescue
           end
         end
+      end
+    end
+
+    def watch_glob
+      if @watch_globs.size == 1
+        "**/#@watch_globs"
+      else
+        "**/{#{@watch_globs * ","}}"
       end
     end
 
@@ -356,6 +364,7 @@ $typing = nil
 $verbose = false
 $enable_growl = RUBY_PLATFORM =~ /darwin/
 $parsing_global_options = false
+$watch_globs = []
 
 until ARGV.empty?
   request = $compilation_requests.last
@@ -400,6 +409,8 @@ until ARGV.empty?
     for request in requests
       request[:source_directories] << value
     end
+  when /^--watch(?:=(.*))$/
+    $watch_globs << $1 || ARGV.shift
   when "--dynamic-typing"
     $typing = :dynamic
   when "--static-typing"
@@ -449,15 +460,21 @@ end
 
 ASAutotest::Logging.verbose = $verbose
 
+$watch_globs = %w|*.as *.mxml| if $watch_globs.empty?
+
+$main = ASAutotest::Main.new \
+  :compilation_requests => $compilation_requests,
+  :typing => $typing,
+  :enable_growl? => $enable_growl,
+  :watch_globs => $watch_globs
+
 begin
-  ASAutotest::Main.run \
-    :compilation_requests => $compilation_requests,
-    :typing => $typing,
-    :enable_growl? => $enable_growl
+  $main.run
 rescue Interrupt
-  for request in $compilation_requests
-    request.stop_demo!
-  end
+end
+
+for request in $main.compilation_requests
+  request.stop_demo!
 end
 
 # Signal successful exit.
