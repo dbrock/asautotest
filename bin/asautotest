@@ -123,15 +123,16 @@ module ASAutotest
     end
 
     def stop_demo!
-      if @demo_command and @demo_process
-        Process.kill "TERM", @demo_process.pid
-        @demo_process = nil
-      end
+      Process.kill("TERM", @demo_pid) if @demo_pid
+    rescue Errno::ESRCH # No such process.
+    ensure
+      @demo_pid = nil
     end
 
     def start_demo!
       if @demo_command
-        @demo_process = IO.popen(@demo_command)
+        @demo_pid = fork { exec("exec #@demo_command") }
+        Process.detach(@demo_pid)
       end
     end
   end
