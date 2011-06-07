@@ -131,8 +131,8 @@ module ASAutotest
 
     def start_demo!
       if @demo_command
-        force_shell = "|| true"
-        @demo_pid = fork { exec("exec #@demo_command #{force_shell}") }
+        force_shell = ":;"
+        @demo_pid = fork { exec("#{force_shell} exec #@demo_command") }
         Process.detach(@demo_pid)
       end
     end
