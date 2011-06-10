@@ -421,8 +421,11 @@ until ARGV.empty?
     $verbose = true
   when "--no-growl"
     $enable_growl = false
-  when /^--demo-command(?:=(.*))$/
-    request[:demo_command] = $1 || ARGV.shift
+  when /^--demo-command(?:=(.*))?$/
+    value = ($1 || ARGV.shift)
+    for request in requests
+      request[:demo_command] = value
+    end
   when /^--mxmlc-option(?:=(.*))?$/, "-X"
     value = ($1 || ARGV.shift)
     for request in requests
