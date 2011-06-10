@@ -426,6 +426,11 @@ until ARGV.empty?
     for request in requests
       request[:demo_command] = value
     end
+  when /^--(?:fps|frame-rate)(?:=(.*))?$/
+    value = ($1 || ARGV.shift)
+    for request in requests
+      request[:extra_mxmlc_options] << "-default-frame-rate=#{value}"
+    end
   when /^--mxmlc-option(?:=(.*))?$/, "-X"
     value = ($1 || ARGV.shift)
     for request in requests
