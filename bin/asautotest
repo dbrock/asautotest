@@ -42,7 +42,11 @@ require "asautotest/test-runner"
 require "asautotest/utilities"
 
 module ASAutotest
-  FCSH = ENV["FCSH"] || "fcsh"
+  FCSH = case
+         when fcsh = ENV["FCSH"] then fcsh
+         when home = ENV["FLEX_HOME"] then File.join(home, "bin", "fcsh")
+         else "fcsh"
+         end
   FLASHPLAYER = ENV["FLASHPLAYER"] || "flashplayer"
   DEFAULT_TEST_PORT = 50102
   GROWL_ERROR_TOKEN = "ASAutotest-#{ARGV.inspect.hash}"
